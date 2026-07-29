@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Search Lab — Build It, Then Run It</title>
+<style>
+:root{
+  --ground:#e7ecf4;
+  --paper:#ffffff;
+  --ink:#131826;
+  --ink-soft:#5a6578;
+  --rule:#c2cbdb;
+  --frontier:#2563eb;
+  --current:#c026d3;
+  --visited:#0f766e;
+  --goal:#b45309;
+  --dead:#9aa5b8;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ground);
+  background-image:
+    linear-gradient(rgba(19,24,38,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(19,24,38,.045) 1px,transparent 1px);
+  background-size:22px 22px;
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.55;
+}
+.wrap{max-width:1420px;margin:0 auto;padding:20px 20px 60px}
+
+/* ---------- masthead ---------- */
+.masthead{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:20px;flex-wrap:wrap;
+  border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:18px;
+}
+.masthead h1{
+  font-family:var(--mono);font-size:22px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;margin:0;
+}
+.masthead p{margin:4px 0 0;color:var(--ink-soft);font-size:13px;max-width:52ch}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;letter-spacing:.05em}
+.legend span{display:flex;align-items:center;gap:6px;text-transform:uppercase}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+
+/* ---------- lab tabs ---------- */
+.tabs{display:flex;gap:0;flex-wrap:wrap;margin-bottom:18px;border-bottom:1px solid var(--rule)}
+.tab{
+  appearance:none;border:1px solid transparent;border-bottom:none;background:none;
+  font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  padding:10px 16px;cursor:pointer;color:var(--ink-soft);position:relative;top:1px;
+}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{
+  background:var(--paper);border-color:var(--rule);color:var(--ink);font-weight:700;
+  box-shadow:0 -2px 0 var(--current) inset;
+}
+.tab .num{opacity:.5;margin-right:7px}
+.tab:focus-visible{outline:2px solid var(--current);outline-offset:2px}
+
+/* ---------- question ---------- */
+.question{
+  background:var(--paper);border:1px solid var(--rule);border-left:4px solid var(--ink);
+  padding:16px 20px;margin-bottom:18px;
+}
+.question h2{
+  font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  margin:0 0 8px;color:var(--ink-soft);
+}
+.question .title{font-size:19px;font-weight:700;margin:0 0 8px}
+.question p{margin:0 0 8px}
+.question ul{margin:6px 0 8px;padding-left:20px}
+.question li{margin-bottom:3px}
+.question code{font-family:var(--mono);background:var(--ground);padding:1px 5px;font-size:13px}
+.qtable{border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin:8px 0}
+.qtable th,.qtable td{border:1px solid var(--rule);padding:4px 10px;text-align:left}
+.qtable th{background:var(--ground);font-weight:700}
+
+/* ---------- mode switch ---------- */
+.modebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.mode{
+  appearance:none;background:var(--paper);border:1px solid var(--rule);
+  font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  padding:9px 18px;cursor:pointer;color:var(--ink-soft);
+}
+.mode[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.mode:focus-visible{outline:2px solid var(--current);outline-offset:2px}
+.modehint{font-size:13px;color:var(--ink-soft)}
+
+/* ---------- main grid ---------- */
+.stage{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:1000px){.stage{grid-template-columns:1fr}}
+
+.panel{background:var(--paper);border:1px solid var(--rule)}
+.panel > header{
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  padding:9px 14px;border-bottom:1px solid var(--rule);color:var(--ink-soft);
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.panel > header .badge{
+  font-size:10px;background:var(--ink);color:#fff;padding:2px 8px;letter-spacing:.1em;
+}
+
+/* ---------- code ---------- */
+.codewrap{padding:0;overflow-x:auto}
+pre.code{
+  margin:0;padding:14px 0;font-family:var(--mono);font-size:13.5px;line-height:1.75;
+  counter-reset:ln;
+}
+.line{display:flex;padding:0 14px;white-space:pre;position:relative}
+.line .no{
+  width:2.2em;flex:none;text-align:right;margin-right:14px;color:#b6c0d1;
+  user-select:none;font-size:12px;
+}
+.line .txt{flex:1}
+.line.blank{height:.9em}
+.line.new{
+  background:rgba(192,38,211,.10);
+  animation:slidein .45s cubic-bezier(.2,.8,.3,1) both;
+}
+.line.new::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--current);
+}
+.line.exec{background:rgba(37,99,235,.14)}
+.line.exec::before{
+  content:"\25B8";position:absolute;left:3px;color:var(--frontier);font-size:12px;
+}
+@keyframes slidein{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.line.new{animation:none}}
+
+.kw{color:#7c3aed;font-weight:600}
+.fn{color:#1d4ed8}
+.st{color:#0f766e}
+.cm{color:#94a0b4;font-style:italic}
+.nu{color:#b45309}
+
+/* ---------- explain ---------- */
+.explain{border-top:1px solid var(--rule);padding:14px 16px;background:#fbfcfe;min-height:132px}
+.explain .step{
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--current);font-weight:700;margin-bottom:4px;
+}
+.explain h4{margin:0 0 6px;font-size:15.5px}
+.explain p{margin:0 0 7px;font-size:14px}
+.explain p:last-child{margin-bottom:0}
+.explain .warn{
+  border-left:3px solid var(--goal);padding-left:11px;background:#fffbeb;
+  padding-top:6px;padding-bottom:6px;font-size:13.5px;
+}
+.explain code{font-family:var(--mono);background:var(--ground);padding:1px 5px;font-size:12.5px}
+
+/* ---------- viz ---------- */
+.viz{padding:10px 8px 4px}
+svg{display:block;width:100%;height:auto}
+.node circle{transition:fill .35s ease,stroke .35s ease,r .35s ease}
+.node text{font-family:var(--mono);font-size:15px;font-weight:700;fill:#fff;pointer-events:none}
+.node .sub{font-size:9.5px;font-weight:500}
+.edge{stroke:var(--rule);stroke-width:2;transition:stroke .35s ease,stroke-width .35s ease}
+.edge.on{stroke:var(--current);stroke-width:4}
+.wlabel{font-family:var(--mono);font-size:12px;fill:var(--ink-soft)}
+.hlabel{font-family:var(--mono);font-size:11px;fill:var(--frontier);font-weight:700}
+.pulse{animation:pulse 1s ease-out infinite}
+@keyframes pulse{0%{opacity:.55;r:32}70%{opacity:0;r:44}100%{opacity:0;r:44}}
+@media(prefers-reduced-motion:reduce){.pulse{animation:none;opacity:0}}
+
+/* ---------- state ---------- */
+.state{border-top:1px solid var(--rule);padding:12px 14px}
+.state h5{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  margin:0 0 7px;color:var(--ink-soft);
+}
+.chips{display:flex;gap:7px;flex-wrap:wrap;min-height:32px;align-items:flex-start}
+.chip{
+  font-family:var(--mono);font-size:12px;padding:5px 10px;border:1px solid var(--frontier);
+  color:var(--frontier);background:#eff5ff;animation:pop .35s cubic-bezier(.2,.9,.3,1) both;
+}
+.chip.head{background:var(--frontier);color:#fff}
+.chip.v{border-color:var(--visited);color:#fff;background:var(--visited)}
+.chip.none{border-color:var(--rule);color:var(--dead);background:transparent}
+@keyframes pop{from{opacity:0;transform:scale(.8) translateY(6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.chip{animation:none}}
+.staterow{display:grid;grid-template-columns:1fr;gap:11px}
+.note{
+  font-size:13.5px;padding:9px 12px;background:#f4f7fc;border-left:3px solid var(--frontier);
+  min-height:40px;
+}
+.note b{color:var(--current)}
+
+/* ---------- console ---------- */
+.console{
+  background:var(--ink);color:#dfe6f2;font-family:var(--mono);font-size:12.5px;
+  padding:12px 14px;min-height:76px;max-height:190px;overflow:auto;line-height:1.7;
+}
+.console .ok{color:#5eead4}
+.console .dim{color:#7f8ca3}
+
+/* ---------- controls ---------- */
+.controls{
+  position:sticky;bottom:0;z-index:5;margin-top:16px;
+  background:var(--ink);color:#fff;padding:11px 14px;
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+}
+.controls button{
+  appearance:none;background:#232b40;border:1px solid #3a4460;color:#fff;
+  font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  padding:9px 15px;cursor:pointer;
+}
+.controls button:hover:not(:disabled){background:#2f3a54}
+.controls button:disabled{opacity:.35;cursor:not-allowed}
+.controls button.primary{background:var(--current);border-color:var(--current)}
+.controls button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.progress{flex:1;min-width:150px;height:5px;background:#333d57;position:relative}
+.progress i{position:absolute;left:0;top:0;bottom:0;background:var(--current);transition:width .3s ease}
+.counter{font-family:var(--mono);font-size:12px;color:#9aa8c2;min-width:74px;text-align:right}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <h1>AI Search Lab</h1>
+      <p>Watch the program get written one line at a time, then watch that same program run. Nothing is skipped — every declaration, every loop, every print.</p>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--frontier)"></i>In queue</span>
+      <span><i class="dot" style="background:var(--current)"></i>Expanding now</span>
+      <span><i class="dot" style="background:var(--visited)"></i>Visited</span>
+      <span><i class="dot" style="background:var(--goal)"></i>Goal</span>
+      <span><i class="dot" style="background:var(--dead)"></i>Untouched</span>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <div class="question" id="question"></div>
+
+  <div class="modebar">
+    <button class="mode" id="mBuild" aria-pressed="true">1 &middot; Write the code</button>
+    <button class="mode" id="mRun" aria-pressed="false">2 &middot; Run the code</button>
+    <span class="modehint" id="modehint"></span>
+  </div>
+
+  <div class="stage">
+    <div class="panel">
+      <header><span>program.py</span><span class="badge" id="codeBadge">BUILDING</span></header>
+      <div class="codewrap"><pre class="code" id="code"></pre></div>
+      <div class="explain" id="explain"></div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <header><span id="vizTitle">What the program is doing</span></header>
+        <div class="viz" id="viz"></div>
+        <div class="state">
+          <div class="staterow">
+            <div>
+              <h5 id="qLabel">queue</h5>
+              <div class="chips" id="queue"></div>
+            </div>
+            <div>
+              <h5>visited</h5>
+              <div class="chips" id="visited"></div>
+            </div>
+            <div class="note" id="note"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <header><span>Output</span></header>
+        <div class="console" id="console"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="reset">Restart</button>
+    <button id="prev">&larr; Back</button>
+    <button id="next" class="primary">Next step &rarr;</button>
+    <button id="play">Auto-play</button>
+    <div class="progress"><i id="bar" style="width:0%"></i></div>
+    <div class="counter" id="counter">0 / 0</div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   PYTHON SYNTAX COLOURING (tiny, good enough for our fixed snippets)
+   ========================================================================= */
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function hi(s){
+  var out = esc(s);
+  out = out.replace(/(#.*)$/, '<span class="cm">$1</span>');
+  out = out.replace(/(&#39;|&quot;|')([A-Za-z0-9_ .,:\-\[\]]*?)\1/g,'<span class="st">$1$2$1</span>');
+  out = out.replace(/\b(def|while|for|in|if|not|return|and|or|None|True|False|import|else|min|max|len|print|sorted|sum|range|append|pop|sort|add|reversed)\b/g,
+    function(m){ return (m==='print'||m==='min'||m==='max'||m==='len'||m==='sorted'||m==='sum'||m==='range'||m==='append'||m==='pop'||m==='sort'||m==='add'||m==='reversed')
+      ? '<span class="fn">'+m+'</span>' : '<span class="kw">'+m+'</span>'; });
+  out = out.replace(/\b(\d+)\b/g,'<span class="nu">$1</span>');
+  return out;
+}
+
+/* =========================================================================
+   LAB DEFINITIONS
+   Each lab: question html, code lines tagged with build-step + run-tag,
+   build step explanations, a live implementation that emits run frames.
+   ========================================================================= */
+
+/* ---- shared graph geometry ---- */
+const TREE = {
+  nodes:{A:[400,42],B:[250,124],C:[552,124],D:[172,208],E:[326,208],F:[476,208],G:[628,208],H:[326,290]},
+  edges:[["A","B"],["A","C"],["B","D"],["B","E"],["C","F"],["C","G"],["E","H"]],
+  goal:"H", w:800, h:330
+};
+const WGRAPH = {
+  nodes:{A:[130,80],B:[400,80],D:[672,80],C:[400,232]},
+  edges:[["A","B",1],["A","C",4],["B","D",5],["B","C",2],["C","D",1]],
+  goal:"D", w:800, h:300, directed:true
+};
+const HGRAPH = {
+  nodes:{S:[120,152],A:[390,62],B:[390,244],G:[672,152]},
+  edges:[["S","A",2],["S","B",1],["A","G",10],["B","G",4]],
+  goal:"G", w:800, h:310, directed:true,
+  h:{S:4,A:2,B:3,G:0}
+};
+
+const LABS = [];
+
+/* =========================================================================
+   LAB 1 — WATER JUG
+   ========================================================================= */
+LABS.push({
+  id:"jug", tab:"Water jug", num:"01",
+  title:"Build the state space of the Water Jug problem",
+  question:`
+    <h2>The question</h2>
+    <div class="title">Lab 1 &middot; State space and combinatorial explosion</div>
+    <p>Jug <b>X</b> holds 4 litres. Jug <b>Y</b> holds 3 litres. Neither has markings. Both start empty. Water is unlimited.</p>
+    <p>Six operations are allowed:</p>
+    <table class="qtable">
+      <tr><th>1 Fill X</th><td>X becomes 4</td><th>4 Empty Y</th><td>Y becomes 0</td></tr>
+      <tr><th>2 Fill Y</th><td>Y becomes 3</td><th>5 Pour X&rarr;Y</th><td>until X empty or Y full</td></tr>
+      <tr><th>3 Empty X</th><td>X becomes 0</td><th>6 Pour Y&rarr;X</th><td>until Y empty or X full</td></tr>
+    </table>
+    <p><b>Write a program that</b> represents a state as <code>(x, y)</code>, writes a <code>successors(state)</code> function, expands the state space level by level from <code>(0,0)</code>, and prints how many <i>new</i> states each level adds.</p>
+    <p><b>Answer this:</b> a tree would predict 6, 36, 216, 1296 nodes. How many does the program actually find, and what single line of code causes the difference?</p>`,
+  qLabel:"frontier (states to expand next)",
+  viz:"jug",
+  code:[
+    {s:0,t:"# LAB 1: state space of the Water Jug problem"},
+    {s:0,t:"# A state is (x, y) = litres in the 4L jug and the 3L jug."},
+    {s:0,t:""},
+    {s:1,t:"def successors(state):", tag:"succ"},
+    {s:1,t:"    x, y = state"},
+    {s:2,t:"    pour_x_to_y = min(x, 3 - y)     # X gives what it has, Y takes what fits"},
+    {s:2,t:"    pour_y_to_x = min(y, 4 - x)"},
+    {s:3,t:"    return [(4, y),                 # 1. Fill X"},
+    {s:3,t:"            (x, 3),                 # 2. Fill Y"},
+    {s:3,t:"            (0, y),                 # 3. Empty X"},
+    {s:3,t:"            (x, 0),                 # 4. Empty Y"},
+    {s:3,t:"            (x - pour_x_to_y, y + pour_x_to_y),   # 5. Pour X into Y"},
+    {s:3,t:"            (x + pour_y_to_x, y - pour_y_to_x)]   # 6. Pour Y into X"},
+    {s:3,t:""},
+    {s:4,t:"start    = (0, 0)"},
+    {s:4,t:"seen     = {start}      # EVERY state ever found  (a set)"},
+    {s:4,t:"frontier = [start]      # states found at the current level"},
+    {s:4,t:"level    = 0"},
+    {s:4,t:""},
+    {s:5,t:"while frontier and level < 8:", tag:"loop"},
+    {s:5,t:"    new = []"},
+    {s:6,t:"    for s in frontier:", tag:"pick"},
+    {s:6,t:"        for ns in successors(s):", tag:"gen"},
+    {s:7,t:"            if ns not in seen:            # <-- the line that matters", tag:"check"},
+    {s:7,t:"                seen.add(ns)"},
+    {s:7,t:"                new.append(ns)"},
+    {s:8,t:"                if ns[0] == 2:", tag:"goal"},
+    {s:8,t:'                    print("   *** GOAL: 2L in X at level", level+1, "***")'},
+    {s:8,t:""},
+    {s:9,t:"    level += 1", tag:"level"},
+    {s:9,t:'    print("Level", level, "->", len(new), "new states:", sorted(new))'},
+    {s:9,t:"    frontier = new          # what we just found becomes what we expand next"},
+    {s:9,t:""},
+    {s:10,t:'print("Total states found:", len(seen))', tag:"done"}
+  ],
+  steps:[
+    {h:"Start with a comment that defines the state",
+     p:["Before any code, decide what a <b>state</b> is. A state must hold everything that matters and nothing else. Here the only thing that matters is how much water is in each jug.",
+        "So a state is the pair <code>(x, y)</code>. Not the time, not the move history, not who poured. Write this down as a comment first — it is the most important design decision in the whole program."]},
+    {h:"Declare the successors function",
+     p:["<code>successors(state)</code> answers one question: <i>from here, what states can I reach in one move?</i>",
+        "<code>x, y = state</code> is Python <b>tuple unpacking</b>. It takes the pair <code>(4, 0)</code> and puts 4 into <code>x</code> and 0 into <code>y</code> in one line."]},
+    {h:"Work out how much water actually moves",
+     p:["The four fill/empty operations are easy. The two pours need thought.",
+        "Pouring X into Y: X can give at most <code>x</code> litres (it has no more). Y can accept at most <code>3 - y</code> litres (that is its free space). The amount that moves is whichever is <b>smaller</b> — that is what <code>min</code> is doing."],
+     warn:"Common mistake: writing <code>min(x, 3)</code>. That is Y's total capacity, not its free space. If Y already holds 2, it can only take 1 more."},
+    {h:"Return all six results",
+     p:["The function returns a plain list of six new states. Notice it does <b>not</b> check whether they are new, whether they are legal, or whether they are duplicates.",
+        "That is deliberate. <code>successors</code> has one job: say what the operations produce. Deciding what is new is a different job, done later. One function, one job."]},
+    {h:"Declare the four variables the search needs",
+     p:["<code>seen</code> is a <b>set</b> holding every state ever found. Sets test membership instantly and refuse duplicates.",
+        "<code>frontier</code> is a <b>list</b> holding only the states found at the current level. This is what we expand next.",
+        "<code>level</code> counts how deep we are. Both <code>seen</code> and <code>frontier</code> start containing just <code>(0,0)</code>."]},
+    {h:"Open the level loop",
+     p:["<code>while frontier and level &lt; 8</code> has two stopping conditions: stop if there is nothing left to expand, and stop after 8 levels.",
+        "<code>new = []</code> is emptied at the top of every level. It will collect the states discovered at this level only."]},
+    {h:"Two nested loops: every state, every move",
+     p:["The outer loop walks each state in the current frontier. The inner loop walks each of the six states that one move can reach.",
+        "Together they generate every state reachable in exactly one more move than the current level."]},
+    {h:"The one line that stops the explosion",
+     p:["<code>if ns not in seen</code> is the whole difference between a tree and a graph. Six moves from <code>(0,0)</code> produce four copies of <code>(0,0)</code> — you cannot empty an empty jug.",
+        "<code>seen.add(ns)</code> must happen <b>immediately</b>, inside the <code>if</code>. If you added everything to <code>seen</code> after the loop finished, two states at the same level could both discover <code>(1,3)</code> and it would be counted twice."],
+     warn:"Delete this <code>if</code> and the program explores 6, 36, 216, 1296&hellip; and never stops. Everything else in the program is bookkeeping; this line is the algorithm."},
+    {h:"Check for the goal as soon as a state is created",
+     p:["<code>ns[0]</code> is the first element of the tuple, which is jug X. So <code>ns[0] == 2</code> asks: does this state have 2 litres in X?",
+        "We print <code>level + 1</code> because <code>level</code> has not been incremented yet at this point in the loop."]},
+    {h:"Finish the level and move on",
+     p:["<code>level += 1</code>, then report, then <code>frontier = new</code>.",
+        "That last assignment is what makes this a level-by-level search: whatever we just discovered becomes what we expand next round. Everything found earlier is already in <code>seen</code> and will never be revisited."]},
+    {h:"Print the total and run it",
+     p:["<code>len(seen)</code> is the size of the entire reachable state space.",
+        "The program is complete. Switch to <b>Run the code</b> and watch it execute."]}
+  ],
+  run(){
+    const F=[], out=[];
+    const succ=s=>{const[x,y]=s;const a=Math.min(x,3-y),b=Math.min(y,4-x);
+      return [[4,y],[x,3],[0,y],[x,0],[x-a,y+a],[x+b,y-b]];};
+    const key=s=>s[0]+","+s[1];
+    let seen=new Set([key([0,0])]), frontier=[[0,0]], level=0;
+    F.push({tag:"loop",jugs:[0,0],frontier:frontier.slice(),seen:[...seen],out:out.slice(),
+      note:"<b>Setup.</b> seen = {(0,0)}, frontier = [(0,0)], level = 0."});
+    while(frontier.length&&level<8){
+      let nw=[];
+      F.push({tag:"loop",jugs:[0,0],frontier:frontier.slice(),seen:[...seen],out:out.slice(),
+        note:`<b>Level ${level+1} begins.</b> new = [] &mdash; emptied.`});
+      for(const s of frontier){
+        F.push({tag:"pick",jugs:s,frontier:frontier.slice(),seen:[...seen],out:out.slice(),cur:key(s),
+          note:`Take <b>(${s})</b> from the frontier. Now call successors on it.`});
+        const S=succ(s);
+        for(const ns of S){
+          const k=key(ns), isNew=!seen.has(k);
+          if(isNew){
+            seen.add(k); nw.push(ns);
+            if(ns[0]===2) out.push({t:`   *** GOAL: 2L in X at level ${level+1} ***`,ok:true});
+          }
+          F.push({tag:isNew?"check":"gen",jugs:ns,frontier:frontier.slice(),seen:[...seen],out:out.slice(),
+            cur:k, fresh:isNew,
+            note: isNew ? `Move gives <b>(${ns})</b> &mdash; not in seen. <b>Keep it.</b>`
+                        : `Move gives (${ns}) &mdash; already in seen. <b>Discard.</b>`});
+        }
+      }
+      level++;
+      out.push({t:`Level ${level} -> ${nw.length} new states: [${nw.map(s=>"("+s+")").sort().join(", ")}]`});
+      F.push({tag:"level",jugs:[0,0],frontier:nw.slice(),seen:[...seen],out:out.slice(),
+        note:`<b>Level ${level} done.</b> ${nw.length} new states. frontier = new.`});
+      frontier=nw;
+    }
+    out.push({t:`Total states found: ${seen.size}`,ok:true});
+    F.push({tag:"done",jugs:[0,0],frontier:[],seen:[...seen],out:out.slice(),
+      note:`<b>Finished.</b> Level 7 produced 0 new states, so the whole space is known: <b>14 states</b>, not 1554.`});
+    return F;
+  }
+});
+
+/* =========================================================================
+   Shared code builders for the graph searches
+   ========================================================================= */
+function graphDeclLines(step){
+  return [
+    {s:step,t:"graph = {'A': ['B','C'],"},
+    {s:step,t:"         'B': ['D','E'],"},
+    {s:step,t:"         'C': ['F','G'],"},
+    {s:step,t:"         'D': [],  'E': ['H'],"},
+    {s:step,t:"         'F': [],  'G': [],  'H': []}"},
+    {s:step,t:""}
+  ];
+}
+
+/* =========================================================================
+   LAB 2 — BFS
+   ========================================================================= */
+LABS.push({
+  id:"bfs", tab:"BFS", num:"02",
+  title:"Breadth-First Search",
+  question:`
+    <h2>The question</h2>
+    <div class="title">Lab 2a &middot; Breadth-First Search</div>
+    <p>Given this tree, find a path from <b>A</b> to <b>H</b>.</p>
+    <p><code>A&rarr;B,C &nbsp; B&rarr;D,E &nbsp; C&rarr;F,G &nbsp; E&rarr;H</code> &nbsp; (D, F, G, H are leaves)</p>
+    <p><b>Write a program that</b> returns the path as a list such as <code>['A','B','E','H']</code>, and also returns the nodes in the order they were visited.</p>
+    <p><b>Answer this:</b> BFS and DFS differ by exactly one line. Which line, and why does changing it produce a completely different algorithm?</p>`,
+  qLabel:"queue (FIFO — take from the front)",
+  viz:"graph", graph:TREE,
+  code:[
+    {s:0,t:"# LAB 2a: Breadth-First Search"},
+    ...graphDeclLines(0),
+    {s:1,t:"def bfs(start, goal):", tag:"def"},
+    {s:2,t:"    queue   = [[start]]     # a list of PATHS, not nodes"},
+    {s:2,t:"    visited = []"},
+    {s:2,t:""},
+    {s:3,t:"    while queue:", tag:"loop"},
+    {s:3,t:"        path = queue.pop(0)     # <-- FIFO: take from the FRONT", tag:"pop"},
+    {s:3,t:"        node = path[-1]         # current node = last item of the path"},
+    {s:3,t:""},
+    {s:4,t:"        if node == goal:", tag:"goal"},
+    {s:4,t:"            return path, visited"},
+    {s:4,t:""},
+    {s:5,t:"        if node not in visited:", tag:"visit"},
+    {s:5,t:"            visited.append(node)"},
+    {s:6,t:"            for n in graph[node]:", tag:"expand"},
+    {s:6,t:"                queue.append(path + [n])"},
+    {s:6,t:""},
+    {s:7,t:"    return None, visited"},
+    {s:7,t:""},
+    {s:8,t:"p, v = bfs('A', 'H')", tag:"call"},
+    {s:8,t:'print("BFS path   :", p)'},
+    {s:8,t:'print("BFS visited:", v)'}
+  ],
+  steps:[
+    {h:"Declare the graph as a dictionary",
+     p:["Each key is a node, each value is the list of its children. Leaves get an empty list <code>[]</code>.",
+        "Do not leave leaves out. If <code>'D'</code> is missing, then <code>graph['D']</code> raises <code>KeyError</code> the moment the search reaches D."]},
+    {h:"Declare the function",
+     p:["<code>def bfs(start, goal)</code> takes where to begin and what to look for. Making them parameters instead of hard-coding <code>'A'</code> and <code>'H'</code> means you can reuse the function for any query."]},
+    {h:"Declare the two variables: queue and visited",
+     p:["Here is the decision that trips most students: does the queue hold <b>nodes</b> or <b>paths</b>?",
+        "If it holds nodes, then when you reach H you have no idea how you got there. So we store whole paths. <code>queue = [[start]]</code> is a <b>list containing one list</b> — note the double brackets.",
+        "<code>visited</code> is a list of nodes already expanded."],
+     warn:"Writing <code>queue = [start]</code> (single brackets) is the classic bug. It looks like it works, then breaks silently."},
+    {h:"Open the loop and take from the FRONT",
+     p:["<code>while queue:</code> — an empty list is falsy in Python, so the loop ends when nothing is left.",
+        "<code>queue.pop(0)</code> removes and returns the item at index 0, the <b>front</b>. That is First In, First Out. <b>This single line is what makes it BFS.</b>",
+        "<code>path[-1]</code> is the last element of the list. For <code>['A','B','E']</code> that is <code>'E'</code> — the node we have currently arrived at."]},
+    {h:"Test the goal immediately after popping",
+     p:["Place this test right after computing <code>node</code>, before anything else.",
+        "If you test after expanding, you generate a whole extra layer of nodes before noticing you already had the answer."]},
+    {h:"Guard against re-expanding",
+     p:["<code>if node not in visited</code> stops a node being expanded twice when two different routes reach it.",
+        "In a pure tree this cannot happen, but write it anyway: it costs nothing and it makes the code correct on any graph."]},
+    {h:"Expand: build a new path for every child",
+     p:["<code>path + [n]</code> creates a <b>brand new list</b>. It does not modify <code>path</code>.",
+        "This matters enormously. If you wrote <code>path.append(n)</code> you would be mutating the same list object for every child, and all of them would end up sharing one corrupted path."],
+     warn:"<code>path + [n]</code> = new list, safe. <code>path.append(n)</code> = mutates the shared list, broken."},
+    {h:"Return failure if the queue empties",
+     p:["If the loop finishes without hitting the goal, no path exists. Return <code>None</code> plus whatever was visited, so the caller can still inspect the search."]},
+    {h:"Call it and print",
+     p:["<code>p, v = bfs('A','H')</code> unpacks the two returned values into two variables.",
+        "The program is complete. Switch to <b>Run the code</b>."]}
+  ],
+  run(){ return graphSearchFrames("bfs"); }
+});
+
+/* =========================================================================
+   LAB 2b — DFS
+   ========================================================================= */
+LABS.push({
+  id:"dfs", tab:"DFS", num:"03",
+  title:"Depth-First Search",
+  question:`
+    <h2>The question</h2>
+    <div class="title">Lab 2b &middot; Depth-First Search</div>
+    <p>Same tree, same query: <b>A</b> to <b>H</b>. Now change <b>one line</b> of your BFS program to make it depth-first.</p>
+    <p><b>Answer this:</b> DFS visits fewer nodes here than BFS. Is DFS therefore the better algorithm? Move the goal from under E to under G and re-run before you answer.</p>`,
+  qLabel:"stack (LIFO — take from the end)",
+  viz:"graph", graph:TREE,
+  code:[
+    {s:0,t:"# LAB 2b: Depth-First Search"},
+    ...graphDeclLines(0),
+    {s:1,t:"def dfs(start, goal):", tag:"def"},
+    {s:1,t:"    stack   = [[start]]         # same structure as BFS"},
+    {s:1,t:"    visited = []"},
+    {s:1,t:""},
+    {s:2,t:"    while stack:", tag:"loop"},
+    {s:2,t:"        path = stack.pop()      # <-- LIFO: take from the END", tag:"pop"},
+    {s:2,t:"        node = path[-1]"},
+    {s:2,t:""},
+    {s:3,t:"        if node == goal:", tag:"goal"},
+    {s:3,t:"            return path, visited"},
+    {s:3,t:""},
+    {s:4,t:"        if node not in visited:", tag:"visit"},
+    {s:4,t:"            visited.append(node)"},
+    {s:5,t:"            for n in reversed(graph[node]):   # reverse: left child on top", tag:"expand"},
+    {s:5,t:"                stack.append(path + [n])"},
+    {s:5,t:""},
+    {s:6,t:"    return None, visited"},
+    {s:6,t:""},
+    {s:7,t:"p, v = dfs('A', 'H')", tag:"call"},
+    {s:7,t:'print("DFS path   :", p)'},
+    {s:7,t:'print("DFS visited:", v)'}
+  ],
+  steps:[
+    {h:"Reuse the same graph dictionary",
+     p:["Nothing about the graph changes. Same nodes, same children, same empty lists for the leaves.",
+        "This matters for the comparison you are about to make: any difference in the result comes from the algorithm, not from the data."]},
+    {h:"Declare the function and its two variables",
+     p:["Identical to BFS: a list of paths, and a list of visited nodes. <code>stack = [[start]]</code> — still double brackets.",
+        "The name changed from <code>queue</code> to <code>stack</code>. That is purely for readability; Python treats both as an ordinary list. <b>Renaming a variable does not change an algorithm.</b> The next step does."]},
+    {h:"Change ONE line: pop() instead of pop(0)",
+     p:["<code>queue.pop(0)</code> takes from the <b>front</b> &rarr; FIFO &rarr; queue &rarr; breadth-first.",
+        "<code>stack.pop()</code> takes from the <b>end</b> &rarr; LIFO &rarr; stack &rarr; depth-first.",
+        "That is the entire difference between the two algorithms. Everything before and after this line is the same."]},
+    {h:"Goal test — unchanged",
+     p:["Same position, same code. Test the goal the moment you pop."]},
+    {h:"Visited guard — unchanged, but now essential",
+     p:["In BFS this guard was a nicety. In DFS it is protection against infinite descent.",
+        "Without a visited check, DFS on a graph with a cycle will follow that cycle forever."]},
+    {h:"Expand in reverse order",
+     p:["Without <code>reversed()</code> we push B then C, so the stack is <code>[B, C]</code> and <code>pop()</code> takes <b>C</b> — the right child first.",
+        "With <code>reversed()</code> we push C then B, so <code>pop()</code> takes <b>B</b> — the left child, matching how you traced it by hand.",
+        "<code>reversed()</code> is not needed for correctness. It is needed for the output to match your paper trace."]},
+    {h:"Return failure",
+     p:["Identical to BFS."]},
+    {h:"Call and print",
+     p:["Run it and compare the visited list against BFS. Then read the answer to the question in the note panel."]}
+  ],
+  run(){ return graphSearchFrames("dfs"); }
+});
+
+/* =========================================================================
+   LAB 3 — UCS
+   ========================================================================= */
+LABS.push({
+  id:"ucs", tab:"UCS", num:"04",
+  title:"Uniform Cost Search",
+  question:`
+    <h2>The question</h2>
+    <div class="title">Lab 3 &middot; Uniform Cost Search</div>
+    <p>Now the edges have <b>costs</b>. Find the <b>cheapest</b> path from A to D.</p>
+    <table class="qtable">
+      <tr><th>A&rarr;B</th><td>1</td><th>A&rarr;C</th><td>4</td><th>B&rarr;D</th><td>5</td><th>B&rarr;C</th><td>2</td><th>C&rarr;D</th><td>1</td></tr>
+    </table>
+    <p>There are exactly three routes: A&rarr;B&rarr;D costs 6, A&rarr;C&rarr;D costs 5, A&rarr;B&rarr;C&rarr;D costs <b>4</b>.</p>
+    <p><b>Answer this:</b> the cheapest route is the one with the <i>most</i> hops. BFS would return a 2-hop route costing 6. Why must the goal be tested when a path is <b>popped</b>, not when it is generated?</p>`,
+  qLabel:"queue — (cost, path), sorted cheapest first",
+  viz:"graph", graph:WGRAPH,
+  code:[
+    {s:0,t:"# LAB 3: Uniform Cost Search"},
+    {s:0,t:"# The graph now stores (neighbour, cost) pairs."},
+    {s:0,t:"graph = {'A': [('B',1), ('C',4)],"},
+    {s:0,t:"         'B': [('D',5), ('C',2)],"},
+    {s:0,t:"         'C': [('D',1)],"},
+    {s:0,t:"         'D': []}"},
+    {s:0,t:""},
+    {s:1,t:"def ucs(start, goal):", tag:"def"},
+    {s:2,t:"    queue = [(0, [start])]       # (accumulated cost, path)"},
+    {s:2,t:""},
+    {s:3,t:"    while queue:", tag:"loop"},
+    {s:3,t:"        queue.sort()             # cheapest path first", tag:"sort"},
+    {s:3,t:"        cost, path = queue.pop(0)", tag:"pop"},
+    {s:3,t:""},
+    {s:4,t:"        if path[-1] == goal:     # goal test on POP, never on generate", tag:"goal"},
+    {s:4,t:"            return cost, path"},
+    {s:4,t:""},
+    {s:5,t:"        for n, w in graph[path[-1]]:", tag:"expand"},
+    {s:5,t:"            queue.append((cost + w, path + [n]))"},
+    {s:5,t:""},
+    {s:6,t:"    return None"},
+    {s:6,t:""},
+    {s:7,t:"print(\"UCS:\", ucs('A', 'D'))", tag:"call"}
+  ],
+  steps:[
+    {h:"Declare a WEIGHTED graph",
+     p:["An unweighted graph was <code>{'A': ['B','C']}</code>. A weighted graph stores <b>pairs</b>: <code>{'A': [('B',1), ('C',4)]}</code>.",
+        "Read <code>graph['A']</code> as: from A you can reach B for 1, or C for 4."]},
+    {h:"Declare the function",
+     p:["Same signature as BFS. Only the inside changes."]},
+    {h:"The queue now holds (cost, path) tuples",
+     p:["<code>queue = [(0, [start])]</code>. The starting cost is 0 because we have not travelled anywhere yet.",
+        "<b>Cost must come first in the tuple.</b> This is not cosmetic — it is what makes the next step work."],
+     warn:"Writing <code>(path, cost)</code> instead makes <code>sort()</code> order alphabetically by path. The algorithm becomes meaningless."},
+    {h:"Sort, then take the cheapest",
+     p:["Python sorts a list of tuples by the <b>first element first</b>. Since cost is first, <code>sort()</code> orders the queue cheapest-to-dearest and <code>pop(0)</code> takes the cheapest.",
+        "Real programs use <code>heapq</code> instead of re-sorting every round. For a 4-node graph, <code>sort()</code> is clearer and just as correct."]},
+    {h:"Goal test AFTER popping — the critical rule",
+     p:["Watch the trace carefully. At one point the queue contains <code>(6, A-B-D)</code> — a <b>complete path to the goal, already found</b>. UCS refuses to take it, because a cheaper option is still waiting.",
+        "If you tested the goal when generating, the program would return 6 and you would never know it was wrong.",
+        "<b>UCS does not stop at the first goal it finds. It stops at the first goal it pops.</b>"]},
+    {h:"Expand: accumulate the cost",
+     p:["<code>for n, w in graph[path[-1]]</code> unpacks each <code>(neighbour, cost)</code> pair straight into two variables.",
+        "<code>cost + w</code> is the accumulated cost of the extended path. This is the only new arithmetic in the whole program."]},
+    {h:"Return failure",
+     p:["If the queue empties with no goal popped, no route exists."]},
+    {h:"Call and print",
+     p:["Run it. Expect <code>(4, ['A','B','C','D'])</code> — a 3-hop route, cheaper than both 2-hop routes."]}
+  ],
+  run(){ return weightedFrames("ucs"); }
+});
+
+/* =========================================================================
+   LAB 4 — GREEDY
+   ========================================================================= */
+LABS.push({
+  id:"greedy", tab:"Greedy", num:"05",
+  title:"Greedy Best-First Search",
+  question:`
+    <h2>The question</h2>
+    <div class="title">Lab 4 &middot; Greedy Best-First Search</div>
+    <p>Travel from S to G. Road costs: <code>S&rarr;A = 2, S&rarr;B = 1, A&rarr;G = 10, B&rarr;G = 4</code>.</p>
+    <p>You are also given a <b>heuristic</b> <code>h</code> — an estimate of the remaining distance, like straight-line distance on a map:</p>
+    <table class="qtable"><tr><th>h(S)</th><td>4</td><th>h(A)</th><td>2</td><th>h(B)</th><td>3</td><th>h(G)</th><td>0</td></tr></table>
+    <p>Greedy expands whichever node has the <b>smallest h</b>, ignoring what has already been spent.</p>
+    <p><b>Answer this:</b> the two routes cost 12 and 5. Greedy returns 12. The heuristic never overestimates, so it is not the heuristic's fault. Which exact line of code is responsible?</p>`,
+  qLabel:"queue — (h, path), sorted smallest h first",
+  viz:"hgraph", graph:HGRAPH,
+  code:[
+    {s:0,t:"# LAB 4: Greedy Best-First Search"},
+    {s:0,t:"graph = {'S': [('A',2), ('B',1)],"},
+    {s:0,t:"         'A': [('G',10)],"},
+    {s:0,t:"         'B': [('G',4)],"},
+    {s:0,t:"         'G': []}"},
+    {s:0,t:""},
+    {s:1,t:"h = {'S': 4, 'A': 2, 'B': 3, 'G': 0}     # estimated distance to G"},
+    {s:1,t:""},
+    {s:2,t:"def cost_of(path):", tag:"cost"},
+    {s:2,t:'    """Add up the REAL edge costs of a finished path."""'},
+    {s:2,t:"    return sum([w for n, w in graph[a] if n == b][0]"},
+    {s:2,t:"               for a, b in zip(path, path[1:]))"},
+    {s:2,t:""},
+    {s:3,t:"def greedy(start, goal):", tag:"def"},
+    {s:3,t:"    queue = [(h[start], [start])]        # (heuristic, path)"},
+    {s:3,t:""},
+    {s:4,t:"    while queue:", tag:"loop"},
+    {s:4,t:"        queue.sort()                     # smallest h first", tag:"sort"},
+    {s:4,t:"        _, path = queue.pop(0)", tag:"pop"},
+    {s:4,t:"        node = path[-1]"},
+    {s:4,t:""},
+    {s:5,t:"        if node == goal:", tag:"goal"},
+    {s:5,t:"            return path, cost_of(path)   # measure damage only at the end"},
+    {s:5,t:""},
+    {s:6,t:"        for n, w in graph[node]:", tag:"expand"},
+    {s:6,t:"            queue.append((h[n], path + [n]))    # <-- w is THROWN AWAY"},
+    {s:6,t:""},
+    {s:7,t:"path, cost = greedy('S', 'G')", tag:"call"},
+    {s:7,t:'print("Greedy path :", path)'},
+    {s:7,t:'print("Actual cost :", cost)'}
+  ],
+  steps:[
+    {h:"Declare the graph and the heuristic SEPARATELY",
+     p:["<code>graph</code> holds the real world: roads and what they actually cost.",
+        "<code>h</code> holds the estimate. Keeping them in two dictionaries means you can swap heuristics without touching the map."]},
+    {h:"Declare the heuristic dictionary",
+     p:["Before trusting <code>h</code>, check it never overestimates. True remaining costs are S=5, A=10, B=4, G=0. Our values 4, 2, 3, 0 are all smaller or equal.",
+        "So <code>h</code> is <b>admissible</b>. It is a perfectly good heuristic. Remember that when greedy fails — the failure is not the heuristic's fault."]},
+    {h:"Write cost_of to measure a finished path",
+     p:["Greedy never tracks cost while running, so you need a way to measure the damage afterwards.",
+        "<code>zip(path, path[1:])</code> pairs each node with the next one: <code>['S','A','G']</code> becomes <code>[('S','A'), ('A','G')]</code> — exactly the edges.",
+        "The inner list comprehension scans <code>graph[a]</code> and keeps the cost <code>w</code> where the neighbour <code>n</code> equals <code>b</code>. The <code>[0]</code> pulls the number out of the one-item list."],
+     warn:"Forget the <code>[0]</code> and Python tries to add lists together: <code>TypeError</code>."},
+    {h:"Declare the queue — (h, path)",
+     p:["Compare with the last two labs. UCS queue: <code>(cost, path)</code>, sorted by <code>g</code>. Greedy queue: <code>(h, path)</code>, sorted by <code>h</code>.",
+        "Same structure, different first element. <b>That first element is the algorithm.</b>"]},
+    {h:"Sort by h and pop",
+     p:["<code>_, path = queue.pop(0)</code>. The underscore is a Python convention meaning \"I have to unpack this value but I do not need it.\"",
+        "We need the path; we do not need the h value once it has done its job of sorting."]},
+    {h:"Goal test, then measure",
+     p:["Only here, at the very end, do we call <code>cost_of</code>. Greedy is <i>defined</i> by not tracking cost during the search, so measuring earlier would defeat the point."]},
+    {h:"Expand — and look hard at this line",
+     p:["<code>for n, w in graph[node]</code> gives us the neighbour <code>n</code> <b>and</b> the real edge cost <code>w</code>.",
+        "Then <code>queue.append((h[n], path + [n]))</code> uses <code>n</code> and <b>throws <code>w</code> away</b>. It is never used.",
+        "That is the answer to the question. Greedy has the cost information available and chooses not to use it."],
+     warn:"This one line is the bug, and it is deliberate. Lab 5 changes exactly this line and the cost drops from 12 to 5."},
+    {h:"Call and print",
+     p:["Run it. Watch round 2: h(A)=2 beats h(B)=3, so greedy commits to A — and never looks at B again."]}
+  ],
+  run(){ return heurFrames("greedy"); }
+});
+
+/* =========================================================================
+   LAB 5 — A*
+   ========================================================================= */
+LABS.push({
+  id:"astar", tab:"A*", num:"06",
+  title:"A* Search",
+  question:`
+    <h2>The question</h2>
+    <div class="title">Lab 5 &middot; A* Search</div>
+    <p><b>Exactly the same graph and heuristic as Lab 4.</b> Change only how the queue is sorted: use <code>f = g + h</code>, where <code>g</code> is the real cost so far and <code>h</code> is the estimate remaining.</p>
+    <p><b>Answer this three ways:</b></p>
+    <ul>
+      <li>How many lines differ from your Lab 4 program?</li>
+      <li>A* expands node A even though A is on the bad route. Why is that not a bug?</li>
+      <li>Set <code>h[B] = 9</code> and re-run. Which guarantee did you just break?</li>
+    </ul>`,
+  qLabel:"queue — (f, g, path), sorted smallest f first",
+  viz:"hgraph", graph:HGRAPH,
+  code:[
+    {s:0,t:"# LAB 5: A* Search   (Lab 4 with three lines changed)"},
+    {s:0,t:"graph = {'S': [('A',2), ('B',1)],"},
+    {s:0,t:"         'A': [('G',10)],"},
+    {s:0,t:"         'B': [('G',4)],"},
+    {s:0,t:"         'G': []}"},
+    {s:0,t:""},
+    {s:0,t:"h = {'S': 4, 'A': 2, 'B': 3, 'G': 0}"},
+    {s:0,t:""},
+    {s:1,t:"# ---- check the heuristic never overestimates ----", tag:"adm"},
+    {s:1,t:"true_cost = {'S': 5, 'A': 10, 'B': 4, 'G': 0}"},
+    {s:1,t:"for node in h:"},
+    {s:1,t:'    ok = "OK" if h[node] <= true_cost[node] else "VIOLATION"'},
+    {s:1,t:'    print(f"  h({node}) = {h[node]}   true = {true_cost[node]}   {ok}")'},
+    {s:1,t:""},
+    {s:2,t:"def astar(start, goal):", tag:"def"},
+    {s:3,t:"    queue = [(h[start], 0, [start])]      # (f, g, path)  <-- CHANGE 1"},
+    {s:3,t:""},
+    {s:4,t:"    while queue:", tag:"loop"},
+    {s:4,t:"        queue.sort()                      # smallest f first", tag:"sort"},
+    {s:4,t:"        f, g, path = queue.pop(0)         # <-- CHANGE 2", tag:"pop"},
+    {s:4,t:"        node = path[-1]"},
+    {s:4,t:""},
+    {s:5,t:"        if node == goal:", tag:"goal"},
+    {s:5,t:"            return path, g                # g IS the answer, already tracked"},
+    {s:5,t:""},
+    {s:6,t:"        for n, w in graph[node]:", tag:"expand"},
+    {s:6,t:"            queue.append((g + w + h[n],   # new f      <-- CHANGE 3"},
+    {s:6,t:"                          g + w,          # new g"},
+    {s:6,t:"                          path + [n]))"},
+    {s:6,t:""},
+    {s:7,t:"path, cost = astar('S', 'G')", tag:"call"},
+    {s:7,t:'print("A* path :", path)'},
+    {s:7,t:'print("Cost    :", cost)'}
+  ],
+  steps:[
+    {h:"Start from your Lab 4 program, unchanged",
+     p:["Same graph, same heuristic, same everything. Copy it across. You are about to change three lines."]},
+    {h:"Add an admissibility check before you trust anything",
+     p:["A*'s optimality is a <b>conditional</b> guarantee. The condition is that <code>h</code> never overestimates.",
+        "If <code>h</code> overestimates anywhere, A* can return a suboptimal answer with <b>no error message</b>. Nothing crashes. The program cheerfully prints a wrong number.",
+        "So verify it. On a real project you will not have a <code>true_cost</code> table, which is why admissibility must be argued from the <i>meaning</i> of the heuristic — straight-line distance can never exceed road distance."]},
+    {h:"Declare the function",
+     p:["Identical to greedy's signature."]},
+    {h:"CHANGE 1 — the queue holds three things, not two",
+     p:["Greedy: <code>(h, path)</code>. A*: <code>(f, g, path)</code>.",
+        "<code>f</code> must be first, because <code>sort()</code> orders by the first element and A* must expand smallest <code>f</code> first.",
+        "<code>g</code> must be carried explicitly. You cannot recompute it from the path each round — that is what <code>cost_of</code> did, and it is wasteful. The starting <code>g</code> is 0."]},
+    {h:"CHANGE 2 — unpack all three",
+     p:["Greedy discarded the sort key with <code>_</code>. A* needs all three values: <code>f</code> and <code>g</code> to display, <code>path</code> to work with.",
+        "Ties are broken by the second element, <code>g</code>. So when two paths have the same <code>f</code>, the one that has spent less goes first."]},
+    {h:"Goal test — and note what is returned",
+     p:["Greedy returned <code>cost_of(path)</code> because it never tracked cost. A* returns <code>g</code> directly, because it has been tracking it all along.",
+        "The <code>cost_of</code> function is no longer needed at all."]},
+    {h:"CHANGE 3 — use w instead of discarding it",
+     p:["Greedy wrote <code>queue.append((h[n], path + [n]))</code> and threw <code>w</code> away.",
+        "A* writes <code>g + w</code> for the new cost-so-far, and <code>g + w + h[n]</code> for the new estimated total.",
+        "The edge cost <code>w</code> is now used <b>twice</b>. That is the entire difference between the two algorithms."],
+     warn:"Add <code>h</code> to both slots by mistake and <code>g</code> becomes corrupted — the program will report <code>f</code> as the cost and you will get the wrong number."},
+    {h:"Call and print",
+     p:["Run it and watch round 3, where A* expands A even though a completed goal path is already sitting in the queue. That is the moment to understand."]}
+  ],
+  run(){ return heurFrames("astar"); }
+});
+
+/* =========================================================================
+   TRACE GENERATORS
+   ========================================================================= */
+const TG = {A:['B','C'],B:['D','E'],C:['F','G'],D:[],E:['H'],F:[],G:[],H:[]};
+
+function graphSearchFrames(kind){
+  const F=[], out=[];
+  let q=[['A']], visited=[];
+  const label=p=>p.join("");
+  F.push({tag:"def",q:q.map(label),visited:[],out:out.slice(),
+    note:`<b>Setup.</b> ${kind==="bfs"?"queue":"stack"} = [['A']], visited = []`});
+  let guard=0;
+  while(q.length && guard++<60){
+    F.push({tag:"loop",q:q.map(label),visited:visited.slice(),out:out.slice(),
+      note:`${kind==="bfs"?"queue":"stack"} is not empty &mdash; go round again.`});
+    const path = kind==="bfs" ? q.shift() : q.pop();
+    const node = path[path.length-1];
+    F.push({tag:"pop",q:q.map(label),visited:visited.slice(),out:out.slice(),cur:node,curPath:path.slice(),
+      note: kind==="bfs"
+        ? `<code>pop(0)</code> takes <b>${label(path)}</b> from the <b>front</b>. node = <b>${node}</b>.`
+        : `<code>pop()</code> takes <b>${label(path)}</b> from the <b>end</b>. node = <b>${node}</b>.`});
+    if(node==='H'){
+      out.push({t:`${kind.toUpperCase()} path   : ${JSON.stringify(path).replace(/"/g,"'")}`,ok:true});
+      out.push({t:`${kind.toUpperCase()} visited: ${JSON.stringify(visited).replace(/"/g,"'")}`,ok:true});
+      F.push({tag:"goal",q:q.map(label),visited:visited.slice(),out:out.slice(),cur:node,curPath:path.slice(),goalHit:true,
+        note:`<b>node == goal.</b> Return the path immediately. Visited ${visited.length} nodes.`});
+      break;
+    }
+    F.push({tag:"goal",q:q.map(label),visited:visited.slice(),out:out.slice(),cur:node,curPath:path.slice(),
+      note:`Is ${node} the goal? No. Carry on.`});
+    if(visited.indexOf(node)<0){
+      visited.push(node);
+      F.push({tag:"visit",q:q.map(label),visited:visited.slice(),out:out.slice(),cur:node,curPath:path.slice(),
+        note:`${node} not in visited &rarr; mark it visited and expand its children.`});
+      const kids = kind==="bfs" ? TG[node] : TG[node].slice().reverse();
+      if(kids.length===0){
+        F.push({tag:"expand",q:q.map(label),visited:visited.slice(),out:out.slice(),cur:node,curPath:path.slice(),
+          note:`<b>${node}</b> is a leaf &mdash; <code>graph['${node}']</code> is empty. Nothing added. Dead end.`});
+      }
+      for(const n of kids){
+        q.push(path.concat([n]));
+        F.push({tag:"expand",q:q.map(label),visited:visited.slice(),out:out.slice(),cur:node,curPath:path.slice(),
+          note:`Add <b>${label(path.concat([n]))}</b> to the ${kind==="bfs"?"back of the queue":"top of the stack"}.`});
+      }
+    }
+  }
+  return F;
+}
+
+const WG = {A:[['B',1],['C',4]],B:[['D',5],['C',2]],C:[['D',1]],D:[]};
+function weightedFrames(){
+  const F=[], out=[];
+  let q=[[0,['A']]];
+  const lab=e=>e[0]+":"+e[1].join("");
+  F.push({tag:"def",q:q.map(lab),visited:[],out:out.slice(),
+    note:"<b>Setup.</b> queue = [(0, ['A'])] &mdash; cost 0, path just A."});
+  let guard=0;
+  while(q.length && guard++<40){
+    q.sort((a,b)=>a[0]-b[0] || a[1].join("").localeCompare(b[1].join("")));
+    F.push({tag:"sort",q:q.map(lab),visited:[],out:out.slice(),
+      note:`<code>sort()</code> orders by the first tuple element &mdash; the cost. Cheapest is now at the front.`});
+    const [cost,path]=q.shift();
+    const node=path[path.length-1];
+    F.push({tag:"pop",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:cost,
+      note:`Pop the cheapest: <b>${path.join("")}</b> at cost <b>${cost}</b>.`});
+    if(node==='D'){
+      out.push({t:`UCS: (${cost}, ${JSON.stringify(path).replace(/"/g,"'")})`,ok:true});
+      F.push({tag:"goal",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:cost,goalHit:true,
+        note:`<b>Goal popped at cost ${cost}.</b> Note the queue still holds a 6-cost route to D that was never taken.`});
+      break;
+    }
+    const hasGoalWaiting = q.some(e=>e[1][e[1].length-1]==='D');
+    F.push({tag:"goal",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:cost,
+      note: hasGoalWaiting
+        ? `Not the goal. <b>A finished path to D is sitting in the queue right now</b> &mdash; and UCS refuses it, because something cheaper is still waiting.`
+        : `Not the goal. Expand it.`});
+    for(const [n,w] of WG[node]){
+      q.push([cost+w, path.concat([n])]);
+      F.push({tag:"expand",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:cost,
+        note:`Add <b>(${cost+w}, ${path.concat([n]).join("")})</b> &nbsp; &mdash; that is ${cost} + ${w}.`});
+    }
+  }
+  return F;
+}
+
+const HG = {S:[['A',2],['B',1]],A:[['G',10]],B:[['G',4]],G:[]};
+const HH = {S:4,A:2,B:3,G:0};
+function heurFrames(kind){
+  const F=[], out=[];
+  const isA = kind==="astar";
+  let q = isA ? [[HH.S,0,['S']]] : [[HH.S,['S']]];
+  const lab=e=> isA ? ("f"+e[0]+" g"+e[1]+" "+e[2].join("")) : ("h"+e[0]+" "+e[1].join(""));
+  const pathOf=e=> isA ? e[2] : e[1];
+  F.push({tag:"def",q:q.map(lab),visited:[],out:out.slice(),
+    note: isA ? "<b>Setup.</b> queue = [(f=4, g=0, ['S'])]" : "<b>Setup.</b> queue = [(h=4, ['S'])]"});
+  let guard=0;
+  while(q.length && guard++<40){
+    q.sort((a,b)=> a[0]-b[0] || (isA ? a[1]-b[1] : 0));
+    F.push({tag:"sort",q:q.map(lab),visited:[],out:out.slice(),
+      note: isA ? "<code>sort()</code> orders by <b>f = g + h</b>. Ties break on the smaller g."
+                : "<code>sort()</code> orders by <b>h alone</b>. Nothing about cost-so-far is considered."});
+    const e=q.shift(), path=pathOf(e), node=path[path.length-1];
+    const g = isA ? e[1] : null;
+    F.push({tag:"pop",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:g,
+      note: isA ? `Pop <b>${path.join("")}</b> &mdash; g=${g}, h=${HH[node]}, f=${e[0]}.`
+                : `Pop <b>${path.join("")}</b> &mdash; h(${node}) = ${HH[node]}. <i>Nothing here knows what it cost to get here.</i>`});
+    if(node==='G'){
+      const real = isA ? g : pathCost(path);
+      out.push({t:(isA?"A* path : ":"Greedy path : ")+JSON.stringify(path).replace(/"/g,"'"),ok:true});
+      out.push({t:(isA?"Cost    : ":"Actual cost : ")+real, ok:true});
+      if(!isA) out.push({t:"Best possible cost is 5 (via B)",ok:false});
+      F.push({tag:"goal",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:real,goalHit:true,
+        note: isA ? `<b>Goal popped at f=5, g=5.</b> Optimal. Greedy got 12 on this identical graph.`
+                  : `<b>Goal reached &mdash; real cost ${real}.</b> The 5-cost route through B is still sitting in the queue, never expanded.`});
+      break;
+    }
+    F.push({tag:"goal",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:g,
+      note:`${node} is not the goal. Expand it.`});
+    for(const [n,w] of HG[node]){
+      if(isA) q.push([g+w+HH[n], g+w, path.concat([n])]);
+      else    q.push([HH[n], path.concat([n])]);
+      F.push({tag:"expand",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:g,
+        note: isA ? `Add <b>f=${g+w+HH[n]}, g=${g+w}</b> for ${path.concat([n]).join("")} &nbsp;(${g} + ${w} + ${HH[n]}).`
+                  : `Add <b>h=${HH[n]}</b> for ${path.concat([n]).join("")}. <b>The edge cost ${w} is discarded.</b>`});
+    }
+  }
+  return F;
+}
+function pathCost(p){let c=0;for(let i=0;i<p.length-1;i++){for(const [n,w] of HG[p[i]]) if(n===p[i+1]) c+=w;}return c;}
+
+/* =========================================================================
+   RENDERING
+   ========================================================================= */
+let lab = LABS[0], mode = "build", idx = 0, frames = [], timer = null;
+
+const $ = id => document.getElementById(id);
+
+function buildTabs(){
+  const t=$("tabs"); t.innerHTML="";
+  LABS.forEach((L,i)=>{
+    const b=document.createElement("button");
+    b.className="tab"; b.setAttribute("role","tab");
+    b.setAttribute("aria-selected", L===lab ? "true":"false");
+    b.innerHTML=`<span class="num">${L.num}</span>${L.tab}`;
+    b.onclick=()=>{ lab=L; idx=0; mode="build"; stop(); render(); };
+    t.appendChild(b);
+  });
+}
+
+function maxIdx(){ return mode==="build" ? lab.steps.length-1 : frames.length-1; }
+
+function renderCode(){
+  const pre=$("code"); pre.innerHTML="";
+  const frame = mode==="run" ? frames[idx] : null;
+  let n=0;
+  lab.code.forEach(L=>{
+    if(mode==="build" && L.s>idx) return;
+    const d=document.createElement("div");
+    const blank = L.t.trim()==="";
+    d.className="line"+(blank?" blank":"");
+    if(mode==="build" && L.s===idx) d.className+=" new";
+    if(mode==="run" && frame && L.tag && L.tag===frame.tag) d.className+=" exec";
+    n++;
+    d.innerHTML = blank ? '<span class="no"></span><span class="txt"></span>'
+      : `<span class="no">${n}</span><span class="txt">${hi(L.t)}</span>`;
+    pre.appendChild(d);
+  });
+  $("codeBadge").textContent = mode==="build" ? "BUILDING" : "RUNNING";
+}
+
+function renderExplain(){
+  const e=$("explain");
+  if(mode==="build"){
+    const s=lab.steps[idx];
+    e.innerHTML = `<div class="step">Step ${idx+1} of ${lab.steps.length}</div>
+      <h4>${s.h}</h4>${s.p.map(x=>`<p>${x}</p>`).join("")}
+      ${s.warn?`<p class="warn">${s.warn}</p>`:""}`;
+  } else {
+    e.innerHTML = `<div class="step">Executing &mdash; frame ${idx+1} of ${frames.length}</div>
+      <h4>The highlighted line is running now</h4>
+      <p>Follow the blue marker in the code, the coloured nodes in the diagram, and the queue chips below. They are all showing the same instant.</p>`;
+  }
+}
+
+function nodeColour(id, f){
+  if(!f) return "var(--dead)";
+  if(f.cur===id) return "var(--current)";
+  if((f.visited||[]).indexOf(id)>=0) return "var(--visited)";
+  const inQ = (f.q||[]).some(s=>s.charAt(s.length-1)===id || s.endsWith(id));
+  if(inQ) return "var(--frontier)";
+  if(lab.graph && lab.graph.goal===id) return "var(--goal)";
+  return "var(--dead)";
+}
+
+function renderGraph(){
+  const G=lab.graph, f = mode==="run" ? frames[idx] : null;
+  const onEdges = new Set();
+  if(f && f.curPath) for(let i=0;i<f.curPath.length-1;i++) onEdges.add(f.curPath[i]+">"+f.curPath[i+1]);
+  let s=`<svg viewBox="0 0 ${G.w} ${G.h}" role="img" aria-label="search graph">`;
+  s+=`<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rule)"/></marker></defs>`;
+  G.edges.forEach(e=>{
+    const [a,b,w]=e, p=G.nodes[a], qn=G.nodes[b];
+    const on = onEdges.has(a+">"+b);
+    const dx=qn[0]-p[0], dy=qn[1]-p[1], L=Math.hypot(dx,dy), r=27;
+    const x1=p[0]+dx/L*r, y1=p[1]+dy/L*r, x2=qn[0]-dx/L*r, y2=qn[1]-dy/L*r;
+    s+=`<line class="edge${on?' on':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${G.directed?'marker-end="url(#ar)"':''}/>`;
+    if(w!==undefined) s+=`<text class="wlabel" x="${(x1+x2)/2}" y="${(y1+y2)/2-7}" text-anchor="middle">${w}</text>`;
+  });
+  Object.keys(G.nodes).forEach(id=>{
+    const [x,y]=G.nodes[id], col=nodeColour(id,f);
+    if(f&&f.cur===id) s+=`<circle class="pulse" cx="${x}" cy="${y}" r="32" fill="var(--current)"/>`;
+    s+=`<g class="node"><circle cx="${x}" cy="${y}" r="26" fill="${col}" stroke="#fff" stroke-width="3"/>`;
+    s+=`<text x="${x}" y="${y+5}" text-anchor="middle">${id}</text></g>`;
+    if(G.h) s+=`<text class="hlabel" x="${x}" y="${y+42}" text-anchor="middle">h=${G.h[id]}</text>`;
+  });
+  s+=`</svg>`;
+  $("viz").innerHTML=s;
+}
+
+function renderJugs(){
+  const f = mode==="run" ? frames[idx] : null;
+  const [x,y] = f && f.jugs ? f.jugs : [0,0];
+  const bar=(cx,cap,val,name)=>{
+    const H=150, w=74, top=30;
+    const fh = H*(val/cap);
+    return `<g>
+      <rect x="${cx}" y="${top}" width="${w}" height="${H}" fill="#fff" stroke="var(--ink)" stroke-width="3"/>
+      <rect x="${cx+3}" y="${top+H-fh+ (fh>0?0:0)}" width="${w-6}" height="${fh}" fill="var(--frontier)" opacity=".8" style="transition:height .45s ease,y .45s ease"/>
+      <text x="${cx+w/2}" y="${top+H+24}" text-anchor="middle" style="font-family:var(--mono);font-size:14px;font-weight:700;fill:var(--ink)">${name} = ${val}</text>
+      <text x="${cx+w/2}" y="${top-9}" text-anchor="middle" style="font-family:var(--mono);font-size:11px;fill:var(--ink-soft)">capacity ${cap}</text>
+    </g>`;
+  };
+  const seen = f ? f.seen.length : 1;
+  let s=`<svg viewBox="0 0 420 230" role="img" aria-label="water jugs">`;
+  s+=bar(60,4,x,"X");
+  s+=bar(200,3,y,"Y");
+  s+=`<text x="330" y="70" style="font-family:var(--mono);font-size:12px;fill:var(--ink-soft)">state</text>`;
+  s+=`<text x="330" y="94" style="font-family:var(--mono);font-size:22px;font-weight:700;fill:${f&&f.fresh?'var(--current)':'var(--ink)'}">(${x}, ${y})</text>`;
+  s+=`<text x="330" y="130" style="font-family:var(--mono);font-size:12px;fill:var(--ink-soft)">states in seen</text>`;
+  s+=`<text x="330" y="154" style="font-family:var(--mono);font-size:22px;font-weight:700;fill:var(--visited)">${seen}</text>`;
+  s+=`<text x="330" y="186" style="font-family:var(--mono);font-size:11px;fill:var(--ink-soft)">a tree would</text>`;
+  s+=`<text x="330" y="202" style="font-family:var(--mono);font-size:11px;fill:var(--goal)">have 1554 by now</text>`;
+  s+=`</svg>`;
+  $("viz").innerHTML=s;
+}
+
+function renderState(){
+  const f = mode==="run" ? frames[idx] : null;
+  $("qLabel").textContent = lab.qLabel;
+  const qc=$("queue"), vc=$("visited");
+  qc.innerHTML=""; vc.innerHTML="";
+  const items = f ? (lab.viz==="jug" ? f.frontier.map(s=>"("+s+")") : f.q) : [];
+  if(!items || !items.length){
+    qc.innerHTML='<span class="chip none">empty</span>';
+  } else {
+    items.forEach((s,i)=>{
+      const c=document.createElement("span");
+      c.className="chip"+(i===0&&lab.viz!=="jug"?" head":"");
+      c.textContent=s; c.style.animationDelay=(i*35)+"ms";
+      qc.appendChild(c);
+    });
+  }
+  const vis = f ? (lab.viz==="jug" ? [] : (f.visited||[])) : [];
+  if(lab.viz==="jug"){
+    document.querySelector('#visited').previousElementSibling.textContent="seen (every state ever found)";
+    const sv = f? f.seen : [];
+    if(!sv.length) vc.innerHTML='<span class="chip none">empty</span>';
+    else sv.forEach((s,i)=>{const c=document.createElement("span");c.className="chip v";c.textContent="("+s+")";c.style.animationDelay=(i*20)+"ms";vc.appendChild(c);});
+  } else {
+    document.querySelector('#visited').previousElementSibling.textContent="visited";
+    if(!vis.length) vc.innerHTML='<span class="chip none">empty</span>';
+    else vis.forEach((s,i)=>{const c=document.createElement("span");c.className="chip v";c.textContent=s;c.style.animationDelay=(i*35)+"ms";vc.appendChild(c);});
+  }
+  $("note").innerHTML = f ? f.note : "Switch to <b>Run the code</b> to watch this program execute line by line.";
+}
+
+function renderConsole(){
+  const f = mode==="run" ? frames[idx] : null;
+  const c=$("console");
+  if(!f || !f.out || !f.out.length){
+    c.innerHTML='<span class="dim">$ python program.py</span><br><span class="dim">(no output yet)</span>';
+    return;
+  }
+  c.innerHTML='<span class="dim">$ python program.py</span><br>' +
+    f.out.map(o=>`<span class="${o.ok?'ok':''}">${esc(o.t)}</span>`).join("<br>");
+  c.scrollTop=c.scrollHeight;
+}
+
+function render(){
+  buildTabs();
+  $("question").innerHTML = lab.question;
+  $("mBuild").setAttribute("aria-pressed", mode==="build");
+  $("mRun").setAttribute("aria-pressed", mode==="run");
+  $("modehint").textContent = mode==="build"
+    ? "Every line appears in the order you would actually type it."
+    : "The same program, now executing. Watch the highlighted line.";
+  if(mode==="run" && !frames.length) frames = lab.run();
+  renderCode(); renderExplain();
+  if(lab.viz==="jug") renderJugs(); else renderGraph();
+  renderState(); renderConsole();
+  const m=maxIdx();
+  $("prev").disabled = idx<=0;
+  $("next").disabled = idx>=m;
+  $("bar").style.width = (m>0 ? (idx/m*100) : 0)+"%";
+  $("counter").textContent = (idx+1)+" / "+(m+1);
+  $("play").textContent = timer ? "Pause" : "Auto-play";
+  $("vizTitle").textContent = mode==="build" ? "What the program will do" : "What the program is doing right now";
+}
+
+function setMode(m){ stop(); mode=m; idx=0; if(m==="run") frames=lab.run(); render(); }
+function stop(){ if(timer){clearInterval(timer);timer=null;} if(mode!=="run") frames=[]; }
+
+$("mBuild").onclick=()=>setMode("build");
+$("mRun").onclick=()=>setMode("run");
+$("next").onclick=()=>{ if(idx<maxIdx()){idx++;render();} };
+$("prev").onclick=()=>{ if(idx>0){idx--;render();} };
+$("reset").onclick=()=>{ stop(); idx=0; render(); };
+$("play").onclick=()=>{
+  if(timer){ clearInterval(timer); timer=null; render(); return; }
+  timer=setInterval(()=>{
+    if(idx>=maxIdx()){ clearInterval(timer); timer=null; render(); return; }
+    idx++; render();
+  }, mode==="build" ? 3800 : 1250);
+  render();
+};
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"){ if(idx<maxIdx()){idx++;render();} }
+  if(e.key==="ArrowLeft"){ if(idx>0){idx--;render();} }
+});
+
+frames=[];
+render();
+</script>
+</body>
+</html>
