@@ -154,6 +154,16 @@ pre.code{
   padding-top:6px;padding-bottom:6px;font-size:13.5px;
 }
 .explain code{font-family:var(--mono);background:var(--ground);padding:1px 5px;font-size:12.5px}
+.pybox,.varbox{margin:9px 0 0;padding:9px 12px;font-size:13.5px;border:1px solid var(--rule);background:#fff}
+.pybox{border-left:3px solid var(--frontier);background:#f4f8ff}
+.varbox{border-left:3px solid var(--visited);background:#f2faf8;font-family:var(--mono);font-size:12.5px}
+.pybox b,.varbox b{
+  display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:5px;
+}
+.pybox b{color:var(--frontier)} .varbox b{color:var(--visited)}
+.pybox p,.varbox p{margin:0 0 5px}
+.pybox p:last-child,.varbox p:last-child{margin-bottom:0}
 
 /* ---------- viz ---------- */
 .viz{padding:10px 8px 4px}
@@ -228,13 +238,7 @@ svg{display:block;width:100%;height:auto}
       <h1>AI Search Lab</h1>
       <p>Watch the program get written one line at a time, then watch that same program run. Nothing is skipped — every declaration, every loop, every print.</p>
     </div>
-    <div class="legend">
-      <span><i class="dot" style="background:var(--frontier)"></i>In queue</span>
-      <span><i class="dot" style="background:var(--current)"></i>Expanding now</span>
-      <span><i class="dot" style="background:var(--visited)"></i>Visited</span>
-      <span><i class="dot" style="background:var(--goal)"></i>Goal</span>
-      <span><i class="dot" style="background:var(--dead)"></i>Untouched</span>
-    </div>
+    <div class="legend" id="legend"></div>
   </div>
 
   <div class="tabs" role="tablist" id="tabs"></div>
@@ -387,43 +391,124 @@ LABS.push({
     {s:9,t:""},
     {s:10,t:'print("Total states found:", len(seen))', tag:"done"}
   ],
+  tagInfo:{
+    succ:{t:"Calling successors(state)",
+      d:["Python has jumped into the <code>successors</code> function. It unpacks the state into <code>x</code> and <code>y</code>, works out the two pour amounts, and builds a list of six new states.",
+         "The function does not decide whether those states are useful. It only reports what the six operations produce."]},
+    loop:{t:"while frontier and level &lt; 8:",
+      d:["Python checks two things. Is <code>frontier</code> non-empty? An empty list counts as <b>False</b> in Python, so an empty frontier ends the loop. Is <code>level</code> still below 8?",
+         "Both true, so we go round again. The first thing inside the loop is <code>new = []</code>, which throws away last level's list and starts a fresh one."]},
+    pick:{t:"for s in frontier:",
+      d:["The outer loop has taken one state out of the frontier and put it in the variable <code>s</code>. The jugs on the right now show that state.",
+         "Next, Python will call <code>successors(s)</code> and loop over the six results one at a time."]},
+    gen:{t:"if ns not in seen:  &rarr; False",
+      d:["A move produced this state, but it is <b>already in <code>seen</code></b>. The <code>if</code> is False, so all three lines inside it are skipped: nothing is added, nothing is recorded.",
+         "This is the moment that keeps the program finite. In a tree search this duplicate would have become a whole new branch to explore."]},
+    check:{t:"if ns not in seen:  &rarr; True",
+      d:["This state has never been produced before. Python runs all three lines inside the <code>if</code>: <code>seen.add(ns)</code> records it forever, <code>new.append(ns)</code> queues it for the next level, and the goal check runs.",
+         "<code>seen.add</code> happens <b>immediately</b>, not at the end of the level. If it waited, two different states at this same level could both discover the same successor and it would be counted twice."]},
+    goal:{t:"if ns[0] == 2:",
+      d:["<code>ns[0]</code> reads the first item of the tuple &mdash; jug X. So this asks: does the state we just created hold exactly 2 litres in X?",
+         "It prints <code>level + 1</code> rather than <code>level</code>, because <code>level</code> is only incremented after the whole level finishes."]},
+    level:{t:"level += 1  /  frontier = new",
+      d:["The level is complete. Python increments the counter, prints the summary line you can see in the output panel, and then does the assignment that drives the whole search: <code>frontier = new</code>.",
+         "Whatever was discovered this level becomes what gets expanded next level. Everything found earlier is already inside <code>seen</code> and will never be looked at again."]},
+    done:{t:'print("Total states found:", len(seen))',
+      d:["The loop has ended because <code>frontier</code> became empty &mdash; a level produced zero new states, which proves every reachable state has been found.",
+         "<code>len(seen)</code> is the size of the entire reachable state space."]}
+  },
   steps:[
-    {h:"Start with a comment that defines the state",
-     p:["Before any code, decide what a <b>state</b> is. A state must hold everything that matters and nothing else. Here the only thing that matters is how much water is in each jug.",
-        "So a state is the pair <code>(x, y)</code>. Not the time, not the move history, not who poured. Write this down as a comment first — it is the most important design decision in the whole program."]},
-    {h:"Declare the successors function",
-     p:["<code>successors(state)</code> answers one question: <i>from here, what states can I reach in one move?</i>",
-        "<code>x, y = state</code> is Python <b>tuple unpacking</b>. It takes the pair <code>(4, 0)</code> and puts 4 into <code>x</code> and 0 into <code>y</code> in one line."]},
+    {h:"Before any code: decide what a state is",
+     p:["This is the most important decision in the program, and it is made before you type a single instruction.",
+        "A <b>state</b> is a snapshot of the problem that holds <i>everything that matters and nothing else</i>. Ask what could possibly affect what happens next. The amount of water in each jug? Yes. The time of day, who is pouring, which moves you already made? None of those change what is legal next.",
+        "So a state is the pair <code>(x, y)</code>, and nothing more. Writing it as a comment first is not decoration &mdash; it is the contract every later line has to obey."],
+     py:["A <b>tuple</b> is written with round brackets: <code>(4, 0)</code>. Unlike a list it cannot be changed after creation, which is exactly what you want for a state. It also means tuples can be stored in a <code>set</code>, which lists cannot."],
+     vars:"none yet &mdash; only a design decision"},
+
+    {h:"Declare the successors function and unpack the state",
+     p:["<code>def successors(state):</code> creates a function. Everything indented underneath belongs to it. <code>state</code> is the <b>parameter</b> &mdash; a name for whatever pair gets handed in when the function is called.",
+        "The function answers exactly one question: <i>from here, which states can I reach in one move?</i>",
+        "<code>x, y = state</code> pulls the pair apart. If <code>state</code> is <code>(4, 0)</code>, then after this line <code>x</code> is 4 and <code>y</code> is 0. Doing it on one line keeps every formula below readable &mdash; <code>3 - y</code> reads far better than <code>3 - state[1]</code>."],
+     py:["<b>Tuple unpacking:</b> <code>x, y = (4, 0)</code> assigns two variables at once. Python matches them by position. If the counts do not match you get <code>ValueError: too many values to unpack</code>.",
+        "<b>Indentation is syntax in Python.</b> There are no braces. The four spaces are what tell Python these lines are inside the function."],
+     vars:"successors(state) &nbsp;&middot;&nbsp; inside it: x, y"},
+
     {h:"Work out how much water actually moves",
-     p:["The four fill/empty operations are easy. The two pours need thought.",
-        "Pouring X into Y: X can give at most <code>x</code> litres (it has no more). Y can accept at most <code>3 - y</code> litres (that is its free space). The amount that moves is whichever is <b>smaller</b> — that is what <code>min</code> is doing."],
-     warn:"Common mistake: writing <code>min(x, 3)</code>. That is Y's total capacity, not its free space. If Y already holds 2, it can only take 1 more."},
-    {h:"Return all six results",
-     p:["The function returns a plain list of six new states. Notice it does <b>not</b> check whether they are new, whether they are legal, or whether they are duplicates.",
-        "That is deliberate. <code>successors</code> has one job: say what the operations produce. Deciding what is new is a different job, done later. One function, one job."]},
-    {h:"Declare the four variables the search needs",
-     p:["<code>seen</code> is a <b>set</b> holding every state ever found. Sets test membership instantly and refuse duplicates.",
-        "<code>frontier</code> is a <b>list</b> holding only the states found at the current level. This is what we expand next.",
-        "<code>level</code> counts how deep we are. Both <code>seen</code> and <code>frontier</code> start containing just <code>(0,0)</code>."]},
+     p:["Four of the six operations are trivial: filling sets a jug to its capacity, emptying sets it to 0. The two pours need real thought, and this is where most students get it wrong.",
+        "Pour X into Y. Two separate limits apply at the same time. X cannot give more than it holds, which is <code>x</code>. Y cannot accept more than its free space, which is <code>3 - y</code> &mdash; its capacity minus what is already in it.",
+        "The amount that actually moves is whichever limit bites first, so it is the <b>smaller</b> of the two. That is precisely what <code>min</code> computes.",
+        "Check it against two cases. If X holds 4 and Y is empty: <code>min(4, 3-0) = 3</code>, so 3 litres move and X keeps 1. If X holds 1 and Y is empty: <code>min(1, 3) = 1</code>, so all of it moves."],
+     py:["<code>min(a, b)</code> returns the smaller of two numbers. It is built into Python; nothing needs importing."],
+     warn:"The classic bug is <code>min(x, 3)</code>. The number 3 is Y's <i>total capacity</i>, not its <i>free space</i>. If Y already holds 2 litres it can only take 1 more, and <code>min(x, 3)</code> would happily overflow it.",
+     vars:"pour_x_to_y, pour_y_to_x &nbsp;(inside the function)"},
+
+    {h:"Return all six results as one list",
+     p:["The <code>return</code> hands back a list of six tuples &mdash; the six states the six operations produce.",
+        "Look at what this function does <b>not</b> do. It does not check whether a result is new. It does not skip pointless moves. It does not know a goal exists. Call it on <code>(0,0)</code> and it cheerfully returns four copies of <code>(0,0)</code>, because emptying an empty jug is a legal operation that changes nothing.",
+        "That is correct design, not laziness. <code>successors</code> has one job: describe the rules of the world. Deciding what is worth keeping is a different job, and mixing the two into one function makes both harder to test."],
+     py:["A <b>list</b> uses square brackets and can hold anything, including tuples: <code>[(4,0), (0,3)]</code> is a list of two tuples.",
+        "The list is spread over several lines. Python allows that freely inside brackets &mdash; the statement ends when the bracket closes, not at the end of a line."],
+     vars:"successors() is now complete and callable"},
+
+    {h:"Declare the four variables the search runs on",
+     p:["The function is finished. Now build the search itself, and it needs exactly four things.",
+        "<code>start</code> is the initial state, <code>(0, 0)</code>: both jugs empty.",
+        "<code>seen</code> is a <b>set</b> holding every state ever discovered, at any level. A set is used, not a list, for two reasons: checking <code>ns not in seen</code> is effectively instant no matter how large it grows, and a set silently refuses duplicates.",
+        "<code>frontier</code> is a <b>list</b> holding only the states discovered at the current level. These are the ones we will expand next.",
+        "<code>level</code> counts how deep the search has gone. Both <code>seen</code> and <code>frontier</code> begin containing only the start state."],
+     py:["<code>{start}</code> with curly braces creates a <b>set</b> containing one item. Careful: <code>{}</code> on its own creates an empty <i>dictionary</i>, not an empty set &mdash; for that you need <code>set()</code>.",
+        "<code>[start]</code> with square brackets creates a <b>list</b> containing one item."],
+     vars:"start = (0,0) &nbsp;&middot;&nbsp; seen = {(0,0)} &nbsp;&middot;&nbsp; frontier = [(0,0)] &nbsp;&middot;&nbsp; level = 0"},
+
     {h:"Open the level loop",
-     p:["<code>while frontier and level &lt; 8</code> has two stopping conditions: stop if there is nothing left to expand, and stop after 8 levels.",
-        "<code>new = []</code> is emptied at the top of every level. It will collect the states discovered at this level only."]},
+     p:["<code>while frontier and level &lt; 8:</code> keeps going while <b>both</b> conditions hold. The loop stops if the frontier ever empties &mdash; which means every reachable state has been found &mdash; or if we hit level 8.",
+        "<code>new = []</code> sits at the top of the loop body, so it is reset at the start of every level. It collects only the states discovered during this level."],
+     py:["An empty list is <b>falsy</b> in Python. So <code>while frontier:</code> means \"while the frontier still has something in it\" &mdash; you do not need <code>while len(frontier) &gt; 0</code>.",
+        "<code>and</code> only continues if both sides are true."],
+     vars:"new = [] &nbsp;(reset at the top of every level)"},
+
     {h:"Two nested loops: every state, every move",
-     p:["The outer loop walks each state in the current frontier. The inner loop walks each of the six states that one move can reach.",
-        "Together they generate every state reachable in exactly one more move than the current level."]},
-    {h:"The one line that stops the explosion",
-     p:["<code>if ns not in seen</code> is the whole difference between a tree and a graph. Six moves from <code>(0,0)</code> produce four copies of <code>(0,0)</code> — you cannot empty an empty jug.",
-        "<code>seen.add(ns)</code> must happen <b>immediately</b>, inside the <code>if</code>. If you added everything to <code>seen</code> after the loop finished, two states at the same level could both discover <code>(1,3)</code> and it would be counted twice."],
-     warn:"Delete this <code>if</code> and the program explores 6, 36, 216, 1296&hellip; and never stops. Everything else in the program is bookkeeping; this line is the algorithm."},
-    {h:"Check for the goal as soon as a state is created",
-     p:["<code>ns[0]</code> is the first element of the tuple, which is jug X. So <code>ns[0] == 2</code> asks: does this state have 2 litres in X?",
-        "We print <code>level + 1</code> because <code>level</code> has not been incremented yet at this point in the loop."]},
-    {h:"Finish the level and move on",
-     p:["<code>level += 1</code>, then report, then <code>frontier = new</code>.",
-        "That last assignment is what makes this a level-by-level search: whatever we just discovered becomes what we expand next round. Everything found earlier is already in <code>seen</code> and will never be revisited."]},
-    {h:"Print the total and run it",
-     p:["<code>len(seen)</code> is the size of the entire reachable state space.",
-        "The program is complete. Switch to <b>Run the code</b> and watch it execute."]}
+     p:["The outer loop, <code>for s in frontier:</code>, walks each state found at the current level.",
+        "The inner loop, <code>for ns in successors(s):</code>, calls the function you wrote and walks the six states one move away from <code>s</code>. The name <code>ns</code> stands for \"new state\".",
+        "Together these two loops generate every state reachable in exactly one more move than the current level. That is what makes the search go level by level rather than diving down one branch."],
+     py:["<code>for item in collection:</code> is Python's only loop over a sequence. There is no C-style <code>for(i=0; i&lt;n; i++)</code>.",
+        "A function call can go directly in the <code>for</code> header. <code>successors(s)</code> is evaluated once, and the loop walks the list it returns."],
+     vars:"s &nbsp;(current state) &nbsp;&middot;&nbsp; ns &nbsp;(one of its six successors)"},
+
+    {h:"The one line that stops the combinatorial explosion",
+     p:["Everything up to now was setup. This is the algorithm.",
+        "<code>if ns not in seen:</code> asks whether this state has ever been produced before. Six moves from <code>(0,0)</code> produce four copies of <code>(0,0)</code>; without this check all four would become separate branches, and each of those would spawn six more.",
+        "Inside the <code>if</code>, three things happen in a fixed order. <code>seen.add(ns)</code> records the state permanently. <code>new.append(ns)</code> queues it for the next level. Then the goal is checked.",
+        "<code>seen.add</code> must run <b>right here</b>, inside the loop, not after the level finishes. If you collected everything first and added it to <code>seen</code> at the end, two different states at the same level could both discover <code>(1,3)</code> and it would be counted twice."],
+     py:["<code>not in</code> tests membership and returns True or False. On a set this is O(1) &mdash; the cost does not grow as the set grows. On a list it would be O(n).",
+        "<code>.add()</code> adds to a set. <code>.append()</code> adds to a list. They are different methods because they are different types; mixing them raises <code>AttributeError</code>."],
+     warn:"Delete this <code>if</code> and the program explores 6, then 36, then 216, then 1296 states and never terminates. Every other line here is bookkeeping. This one line is the difference between a tree and a graph.",
+     vars:"seen grows permanently &nbsp;&middot;&nbsp; new grows within this level only"},
+
+    {h:"Check for the goal the moment a state is created",
+     p:["<code>ns[0]</code> reads item 0 of the tuple, which by our own definition in Step 1 is jug X. So <code>ns[0] == 2</code> asks: does this new state hold exactly 2 litres in X?",
+        "The check sits inside the <code>if ns not in seen</code> block, so it only runs on genuinely new states &mdash; there is no point re-testing something already recorded.",
+        "The message prints <code>level + 1</code>, not <code>level</code>. At this point in the loop the counter has not yet been incremented for the level currently being built, so <code>level</code> is still one behind."],
+     py:["<code>ns[0]</code> is <b>indexing</b>. Python counts from 0, so <code>[0]</code> is the first item and <code>[1]</code> the second. <code>ns[-1]</code> would be the last.",
+        "<code>==</code> compares values. A single <code>=</code> assigns, and using it here is a syntax error &mdash; which is Python protecting you."],
+     vars:"unchanged &mdash; this step only reads and prints"},
+
+    {h:"Close the level and hand over to the next one",
+     p:["Three statements finish the level.",
+        "<code>level += 1</code> advances the counter. <code>print(...)</code> reports how many new states this level produced, and <code>sorted(new)</code> puts them in a readable order for display only.",
+        "<code>frontier = new</code> is the line that actually drives the search forward. Whatever was just discovered becomes what gets expanded next round. Everything found earlier is already inside <code>seen</code> and will never be revisited &mdash; so each level costs less than a naive re-scan would."],
+     py:["<code>level += 1</code> is shorthand for <code>level = level + 1</code>.",
+        "<code>sorted(x)</code> returns a <b>new</b> sorted list and leaves <code>x</code> alone. <code>x.sort()</code> would rearrange <code>x</code> itself. Here we only want a tidy printout, so <code>sorted</code> is correct.",
+        "<code>frontier = new</code> makes both names refer to the same list object &mdash; but on the next loop iteration <code>new = []</code> rebinds <code>new</code> to a brand-new empty list, so they separate again immediately."],
+     vars:"level incremented &nbsp;&middot;&nbsp; frontier now points at this level's discoveries"},
+
+    {h:"Print the total, and understand what it proves",
+     p:["<code>len(seen)</code> is the number of distinct states in the entire reachable state space.",
+        "When you run this you will see a level that produces <b>0 new states</b>. That is not a bug and not an early exit &mdash; it is a proof. If a full level of expansion produces nothing unseen, then every state reachable from the start has already been found, and the search is complete.",
+        "The program is finished. Switch to <b>Run the code</b> above and watch these same lines execute one at a time."],
+     py:["<code>len()</code> works on lists, sets, strings, tuples and dictionaries &mdash; anything with a size.",
+        "<code>print()</code> accepts several arguments separated by commas and joins them with a space, converting each to text automatically. No formatting or casting needed."],
+     vars:"seen holds the complete reachable state space"}
   ],
   run(){
     const F=[], out=[];
@@ -520,36 +605,99 @@ LABS.push({
     {s:8,t:'print("BFS path   :", p)'},
     {s:8,t:'print("BFS visited:", v)'}
   ],
+  tagInfo:{
+    def:{t:"Setting up before the loop",
+      d:["<code>queue = [[start]]</code> puts one path into the queue &mdash; the path that contains just the start node. <code>visited = []</code> starts empty.",
+         "Nothing has been searched yet. The diagram shows every node grey except the one path sitting in the queue."]},
+    loop:{t:"while queue:",
+      d:["Python asks whether the queue still has anything in it. An empty list is <b>False</b> in Python, so an empty queue would end the loop and the function would return <code>None</code>.",
+         "It is not empty, so we go round again."]},
+    pop:{t:"path = queue.pop(0)  &nbsp;then&nbsp;  node = path[-1]",
+      d:["<code>pop(0)</code> removes and returns the item at index <b>0</b> &mdash; the very front of the queue. Everything behind it shifts forward by one. This is First In, First Out, and it is the single line that makes this algorithm breadth-first.",
+         "<code>path[-1]</code> then reads the last item of that path. A negative index counts from the end, so <code>-1</code> is the last element &mdash; the node we have currently arrived at. The magenta node in the diagram is that node."]},
+    goal:{t:"if node == goal:",
+      d:["Compare the node we just arrived at against the target. This test sits immediately after the pop, before any expansion.",
+         "If it had been placed after the expansion instead, the program would generate an entire extra layer of children before noticing it already held the answer &mdash; roughly <code>b</code> times more work for nothing."]},
+    visit:{t:"if node not in visited:  &rarr; True",
+      d:["This node has not been expanded before, so Python records it with <code>visited.append(node)</code> and moves on to generate its children.",
+         "On a pure tree a node can only be reached one way, so this guard never fires. On a graph with several routes to the same node it prevents the same subtree being explored twice, and on a graph with a cycle it prevents an infinite loop."]},
+    expand:{t:"queue.append(path + [n])",
+      d:["For each child <code>n</code>, build the extended path and add it to the <b>back</b> of the queue.",
+         "<code>path + [n]</code> creates a brand-new list. It leaves <code>path</code> untouched, which is essential &mdash; the same <code>path</code> is being reused for the next child on the very next pass of this loop."]},
+    call:{t:"p, v = bfs('A', 'H')",
+      d:["The function has returned two values as a tuple, and Python has unpacked them into <code>p</code> and <code>v</code> in one line.",
+         "The two <code>print</code> calls put the result in the output panel."]}
+  },
   steps:[
     {h:"Declare the graph as a dictionary",
-     p:["Each key is a node, each value is the list of its children. Leaves get an empty list <code>[]</code>.",
-        "Do not leave leaves out. If <code>'D'</code> is missing, then <code>graph['D']</code> raises <code>KeyError</code> the moment the search reaches D."]},
-    {h:"Declare the function",
-     p:["<code>def bfs(start, goal)</code> takes where to begin and what to look for. Making them parameters instead of hard-coding <code>'A'</code> and <code>'H'</code> means you can reuse the function for any query."]},
-    {h:"Declare the two variables: queue and visited",
-     p:["Here is the decision that trips most students: does the queue hold <b>nodes</b> or <b>paths</b>?",
-        "If it holds nodes, then when you reach H you have no idea how you got there. So we store whole paths. <code>queue = [[start]]</code> is a <b>list containing one list</b> — note the double brackets.",
-        "<code>visited</code> is a list of nodes already expanded."],
-     warn:"Writing <code>queue = [start]</code> (single brackets) is the classic bug. It looks like it works, then breaks silently."},
+     p:["A <b>dictionary</b> maps keys to values. Here each key is a node name and each value is the list of that node's children.",
+        "Read <code>'B': ['D','E']</code> as: from B you can reach D or E. Look-up is by name, so <code>graph['B']</code> gives you <code>['D','E']</code> instantly, no scanning required.",
+        "Leaves must still appear, with an empty list: <code>'D': []</code>. It is tempting to leave them out since they go nowhere, but the search will still arrive at D and ask for its children."],
+     py:["A dictionary uses curly braces with <code>key: value</code> pairs. Keys here are strings, values are lists.",
+        "<code>graph['D']</code> on a missing key raises <code>KeyError: 'D'</code> and stops the program. That is why every node, including leaves, needs an entry."],
+     vars:"graph &nbsp;(8 nodes, 7 edges)"},
+
+    {h:"Declare the function with parameters",
+     p:["<code>def bfs(start, goal):</code> defines a function taking two parameters: where to begin and what to look for.",
+        "Making these parameters instead of hard-coding <code>'A'</code> and <code>'H'</code> inside the body means the same function answers any query on this graph. In the exercises you will move the goal from E to G, and because of this choice nothing inside the function has to change."],
+     py:["Parameters are placeholders. They receive their values when the function is <i>called</i>, at the bottom of the program &mdash; not when it is defined here."],
+     vars:"bfs(start, goal) &nbsp;defined but not yet running"},
+
+    {h:"Declare the two variables &mdash; and decide what the queue holds",
+     p:["This is the decision that trips up most students, so make it consciously: does the queue hold <b>nodes</b> or <b>whole paths</b>?",
+        "If it holds nodes, then the moment you reach H you know you arrived but have no idea how. You would need a separate dictionary recording each node's parent, plus a loop to walk backwards and rebuild the route.",
+        "If it holds whole paths, the answer is already in your hand. Pop <code>['A','B','E','H']</code> and there is nothing left to reconstruct. That is what we do here.",
+        "So <code>queue = [[start]]</code> is a <b>list containing one list</b>. The outer brackets are the queue; the inner brackets are the single path <code>['A']</code>. <code>visited</code> is a plain list of node names already expanded."],
+     py:["<code>[[start]]</code> &mdash; count the brackets. <code>[start]</code> would be a list of one <i>string</i>; <code>[[start]]</code> is a list of one <i>list</i>."],
+     warn:"Writing <code>queue = [start]</code> is the classic bug. Then <code>path</code> becomes the string <code>'A'</code>, and <code>path[-1]</code> gives <code>'A'</code> too &mdash; so it appears to work, right up until <code>path + [n]</code> tries to add a list to a string and raises <code>TypeError</code>.",
+     vars:"queue = [['A']] &nbsp;&middot;&nbsp; visited = []"},
+
     {h:"Open the loop and take from the FRONT",
-     p:["<code>while queue:</code> — an empty list is falsy in Python, so the loop ends when nothing is left.",
-        "<code>queue.pop(0)</code> removes and returns the item at index 0, the <b>front</b>. That is First In, First Out. <b>This single line is what makes it BFS.</b>",
-        "<code>path[-1]</code> is the last element of the list. For <code>['A','B','E']</code> that is <code>'E'</code> — the node we have currently arrived at."]},
+     p:["<code>while queue:</code> runs as long as anything is left to explore. If the queue empties, every reachable path has been tried and no goal was found.",
+        "<code>path = queue.pop(0)</code> removes and returns the item at index 0 &mdash; the <b>front</b>. Everything else shifts forward. First In, First Out.",
+        "<b>This one line is what makes the algorithm breadth-first.</b> Because the oldest path always leaves first, all paths of length 2 are processed before any path of length 3. The search sweeps level by level.",
+        "<code>node = path[-1]</code> reads the last item of the path. For <code>['A','B','E']</code> that is <code>'E'</code> &mdash; where this path has currently reached."],
+     py:["<code>.pop(0)</code> takes from the front; <code>.pop()</code> with no argument takes from the end. Remember that difference &mdash; the next lab changes exactly this.",
+        "Negative indexing: <code>path[-1]</code> is the last item, <code>path[-2]</code> the second-to-last. Much clearer than <code>path[len(path)-1]</code>."],
+     vars:"path &nbsp;(the route popped) &nbsp;&middot;&nbsp; node &nbsp;(its final node)"},
+
     {h:"Test the goal immediately after popping",
-     p:["Place this test right after computing <code>node</code>, before anything else.",
-        "If you test after expanding, you generate a whole extra layer of nodes before noticing you already had the answer."]},
-    {h:"Guard against re-expanding",
-     p:["<code>if node not in visited</code> stops a node being expanded twice when two different routes reach it.",
-        "In a pure tree this cannot happen, but write it anyway: it costs nothing and it makes the code correct on any graph."]},
-    {h:"Expand: build a new path for every child",
-     p:["<code>path + [n]</code> creates a <b>brand new list</b>. It does not modify <code>path</code>.",
-        "This matters enormously. If you wrote <code>path.append(n)</code> you would be mutating the same list object for every child, and all of them would end up sharing one corrupted path."],
-     warn:"<code>path + [n]</code> = new list, safe. <code>path.append(n)</code> = mutates the shared list, broken."},
+     p:["Put this test right after <code>node</code> is computed, before any expansion happens.",
+        "If you place it after the expansion instead, the program will generate every child of the goal's parent, and their children, before checking &mdash; roughly <code>b</code> times more work than necessary, where <code>b</code> is the branching factor.",
+        "<code>return path, visited</code> hands back two values at once. Python packs them into a tuple automatically; no special syntax is needed."],
+     py:["<code>return a, b</code> returns the tuple <code>(a, b)</code>. The caller can unpack it with <code>x, y = f()</code> or keep it whole.",
+        "<code>return</code> exits the function immediately. Nothing after it in the loop runs."],
+     vars:"unchanged &mdash; this step only reads"},
+
+    {h:"Guard against expanding the same node twice",
+     p:["<code>if node not in visited:</code> checks whether this node has already had its children generated.",
+        "On this particular tree that can never happen &mdash; each node has exactly one route to it &mdash; so the guard never fires. Write it anyway, for two reasons.",
+        "First, it costs nothing here and makes the code correct on any graph where several routes reach the same node. Second, on a graph containing a cycle it is the only thing standing between you and an infinite loop. You will test exactly that in the exercises."],
+     py:["<code>not in</code> works on lists and returns True or False. On a list it scans, which is O(n); on a set it would be O(1). For eight nodes it makes no difference, but on a large graph you would use a set here."],
+     vars:"visited grows by one node"},
+
+    {h:"Expand: build a NEW path for every child",
+     p:["<code>for n in graph[node]:</code> looks up this node's children in the dictionary and loops over them.",
+        "<code>queue.append(path + [n])</code> builds the extended route and adds it to the <b>back</b> of the queue. Adding at the back is the other half of FIFO &mdash; new discoveries queue up behind everything already waiting, which is what keeps the search level by level.",
+        "<code>path + [n]</code> creates a <b>brand new list</b>. It does not touch <code>path</code>. That matters enormously here, because the same <code>path</code> is used again on the very next pass of this loop for the next child."],
+     py:["<code>+</code> on two lists <b>concatenates</b> them into a new list: <code>['A','B'] + ['E']</code> gives <code>['A','B','E']</code>. The originals are unchanged.",
+        "<code>.append()</code> <b>mutates</b> the list it is called on and returns <code>None</code>. Writing <code>path = path.append(n)</code> silently sets <code>path</code> to <code>None</code> &mdash; a favourite source of confusing crashes."],
+     warn:"<code>path + [n]</code> makes a copy: safe. <code>path.append(n)</code> modifies the shared list: every child ends up pointing at the same corrupted route.",
+     vars:"queue grows by one path per child"},
+
     {h:"Return failure if the queue empties",
-     p:["If the loop finishes without hitting the goal, no path exists. Return <code>None</code> plus whatever was visited, so the caller can still inspect the search."]},
-    {h:"Call it and print",
-     p:["<code>p, v = bfs('A','H')</code> unpacks the two returned values into two variables.",
-        "The program is complete. Switch to <b>Run the code</b>."]}
+     p:["If the <code>while</code> loop ends without ever hitting the goal, the queue ran dry &mdash; every reachable path was tried and none reached the target.",
+        "Return <code>None</code> for the path, but still return <code>visited</code>. The caller then has a record of exactly how much was explored, which is what you need when debugging why a search failed."],
+     py:["<code>None</code> is Python's \"no value\". It is not zero and not an empty string; it is its own type. Test for it with <code>if p is None:</code> rather than <code>== None</code>."],
+     vars:"function complete"},
+
+    {h:"Call the function and print the result",
+     p:["<code>p, v = bfs('A', 'H')</code> calls the function and unpacks the returned tuple into two variables in a single line.",
+        "The two <code>print</code> calls report both the route and the search effort. Reporting the visited list is not optional in this lab &mdash; it is the number you will compare against DFS in the next lab, and the path alone will not show you any difference.",
+        "The program is complete. Switch to <b>Run the code</b> above and step through it."],
+     py:["<code>p, v = bfs(...)</code> is tuple unpacking again, the same feature used in Lab 1's <code>x, y = state</code>.",
+        "<code>print(\"label:\", value)</code> joins the arguments with a space and converts each to text automatically."],
+     vars:"p = the path found &nbsp;&middot;&nbsp; v = nodes visited"}
   ],
   run(){ return graphSearchFrames("bfs"); }
 });
@@ -592,30 +740,84 @@ LABS.push({
     {s:7,t:'print("DFS path   :", p)'},
     {s:7,t:'print("DFS visited:", v)'}
   ],
+  tagInfo:{
+    def:{t:"Setting up before the loop",
+      d:["Identical to BFS. One path on the stack, an empty visited list.",
+         "The variable is called <code>stack</code> rather than <code>queue</code>, but it is still an ordinary Python list. The name is a comment to the reader, not an instruction to Python."]},
+    loop:{t:"while stack:",
+      d:["Same test as BFS: is there anything left to explore? An empty list is False, which would end the loop."]},
+    pop:{t:"path = stack.pop()  &nbsp;&mdash; from the END",
+      d:["<code>pop()</code> with <b>no argument</b> removes and returns the <b>last</b> item. Nothing shifts; the list simply gets shorter. This is Last In, First Out.",
+         "Because the newest path always leaves first, the search dives straight down the branch it most recently discovered instead of finishing the current level. That is the whole of depth-first search, expressed in one missing argument."]},
+    goal:{t:"if node == goal:",
+      d:["Character for character the same as BFS. Test the moment you pop."]},
+    visit:{t:"if node not in visited:",
+      d:["In BFS this guard was a nicety. Here it is load-bearing.",
+         "Without it, a graph containing any cycle sends DFS down that cycle forever &mdash; it will happily walk A&rarr;B&rarr;A&rarr;B until memory runs out, because it never backtracks while it can still go deeper."]},
+    expand:{t:"for n in reversed(graph[node]):",
+      d:["Children are pushed onto the top of the stack. Because <code>pop()</code> takes from the top, the <b>last</b> child pushed is the <b>first</b> one explored.",
+         "<code>reversed()</code> flips the order so the leftmost child ends up on top and gets explored first, matching how you would trace it on paper."]},
+    call:{t:"p, v = dfs('A', 'H')",
+      d:["The result is in. Compare the <code>visited</code> list against BFS's before drawing any conclusion about which algorithm is better."]}
+  },
   steps:[
-    {h:"Reuse the same graph dictionary",
-     p:["Nothing about the graph changes. Same nodes, same children, same empty lists for the leaves.",
-        "This matters for the comparison you are about to make: any difference in the result comes from the algorithm, not from the data."]},
-    {h:"Declare the function and its two variables",
-     p:["Identical to BFS: a list of paths, and a list of visited nodes. <code>stack = [[start]]</code> — still double brackets.",
-        "The name changed from <code>queue</code> to <code>stack</code>. That is purely for readability; Python treats both as an ordinary list. <b>Renaming a variable does not change an algorithm.</b> The next step does."]},
+    {h:"Reuse the same graph dictionary, unchanged",
+     p:["Nothing about the data changes. Same eight nodes, same seven edges, same empty lists for the leaves.",
+        "This is deliberate and it matters for the comparison you are about to make. If the graph were different too, you could not tell whether the different result came from the algorithm or from the data. Change one thing at a time."],
+     py:["Copy the dictionary across exactly. In a real project you would put it in a shared module and import it into both programs."],
+     vars:"graph &nbsp;(identical to Lab 2a)"},
+
+    {h:"Declare the function and its two variables &mdash; still identical",
+     p:["<code>stack = [[start]]</code>: still a list containing one path. Still double brackets. <code>visited = []</code>: still an empty list.",
+        "The only thing that changed is the <b>name</b>, from <code>queue</code> to <code>stack</code>. Python does not care &mdash; both are ordinary lists with the same methods. The name is documentation for whoever reads the code next.",
+        "Say this out loud before moving on: <b>renaming a variable does not change an algorithm.</b> At this point the program is still, in every way that matters, breadth-first search. The next step is what changes it."],
+     py:["Python has no separate Stack or Queue type built into the language for this purpose. A list does both jobs; which one it is depends entirely on <i>which end you take from</i>."],
+     vars:"stack = [['A']] &nbsp;&middot;&nbsp; visited = []"},
+
     {h:"Change ONE line: pop() instead of pop(0)",
-     p:["<code>queue.pop(0)</code> takes from the <b>front</b> &rarr; FIFO &rarr; queue &rarr; breadth-first.",
-        "<code>stack.pop()</code> takes from the <b>end</b> &rarr; LIFO &rarr; stack &rarr; depth-first.",
-        "That is the entire difference between the two algorithms. Everything before and after this line is the same."]},
-    {h:"Goal test — unchanged",
-     p:["Same position, same code. Test the goal the moment you pop."]},
-    {h:"Visited guard — unchanged, but now essential",
-     p:["In BFS this guard was a nicety. In DFS it is protection against infinite descent.",
-        "Without a visited check, DFS on a graph with a cycle will follow that cycle forever."]},
-    {h:"Expand in reverse order",
-     p:["Without <code>reversed()</code> we push B then C, so the stack is <code>[B, C]</code> and <code>pop()</code> takes <b>C</b> — the right child first.",
-        "With <code>reversed()</code> we push C then B, so <code>pop()</code> takes <b>B</b> — the left child, matching how you traced it by hand.",
-        "<code>reversed()</code> is not needed for correctness. It is needed for the output to match your paper trace."]},
+     p:["Here is the entire difference between the two algorithms.",
+        "<code>pop(0)</code> takes the item at index 0 &mdash; the <b>front</b>, the oldest thing in the list. First In, First Out. That is a queue, and a queue gives you breadth-first search.",
+        "<code>pop()</code> with no argument takes the <b>last</b> item &mdash; the newest thing added. Last In, First Out. That is a stack, and a stack gives you depth-first search.",
+        "Think about why the consequence is so large. In BFS the oldest path leaves first, so nothing at depth 3 is touched until everything at depth 2 is done &mdash; the search sweeps sideways. In DFS the newest path leaves first, so the moment a child is discovered it becomes the next thing explored &mdash; the search plunges downward and only comes back up when it hits a dead end."],
+     py:["<code>lst.pop(i)</code> removes and returns the item at index <code>i</code>. With no index it defaults to <code>-1</code>, the last item.",
+        "<code>pop(0)</code> is also slower on long lists, because every remaining item shifts down one position. <code>pop()</code> just shortens the list. For eight nodes this is irrelevant; on a million-node search it is not."],
+     warn:"One character &mdash; the <code>0</code> &mdash; is the whole algorithm. Everything above this line and everything below it is byte-for-byte the same as BFS.",
+     vars:"path &nbsp;(newest route) &nbsp;&middot;&nbsp; node"},
+
+    {h:"Goal test &mdash; character for character the same",
+     p:["Same code, same position, same reasoning: test the goal the instant you pop, before doing any expansion work.",
+        "Note what this test does <b>not</b> promise here. In BFS, the first goal popped is guaranteed to be the shallowest one. In DFS there is no such guarantee at all &mdash; the first path DFS finds to the goal may be far longer than the shortest. DFS answers \"is there a route?\", not \"what is the best route?\""],
+     py:["No new syntax. Recognising when code is unchanged is as important as recognising when it is not."],
+     vars:"unchanged"},
+
+    {h:"Visited guard &mdash; unchanged code, but now essential",
+     p:["The line is identical to BFS. Its importance is not.",
+        "In BFS, exhausting each level before going deeper means the search is naturally bounded; the guard was a nicety that made the code correct on general graphs.",
+        "In DFS the guard is protection against never terminating. DFS only backtracks when it cannot go deeper. Give it a cycle &mdash; add an edge from H back to A &mdash; and without this check it walks that cycle forever, because from its point of view there is always somewhere new to descend to.",
+        "You will test exactly this in the exercises: add <code>'H': ['A']</code>, comment out the guard, and watch what happens."],
+     py:["Note the guard checks <code>node</code>, not <code>path</code>. Two different paths reaching the same node is exactly the case we want to catch."],
+     vars:"visited grows by one node"},
+
+    {h:"Expand in reverse order &mdash; and understand why",
+     p:["Children are pushed onto the stack, and <code>pop()</code> takes from the top. So the <b>last</b> child pushed is the <b>first</b> one explored. The order of pushing is therefore reversed by the time it reaches exploration.",
+        "Without <code>reversed()</code>: we push B, then C. The stack reads <code>[B, C]</code> and <code>pop()</code> takes <b>C</b> &mdash; the right child. The search runs right-to-left.",
+        "With <code>reversed()</code>: we push C, then B. The stack reads <code>[C, B]</code> and <code>pop()</code> takes <b>B</b> &mdash; the left child. The search runs left-to-right, matching how you traced it on paper.",
+        "Be clear about what this does and does not affect. <code>reversed()</code> is <b>not required for correctness</b>. Both versions find a valid path. It changes <i>which</i> path DFS finds and <i>how many</i> nodes it visits &mdash; which is exactly why you must not treat DFS's node count on any one graph as a general result."],
+     py:["<code>reversed(lst)</code> returns an iterator that walks the list backwards. It does not modify the original. To get an actual list back you would write <code>list(reversed(lst))</code>, but a <code>for</code> loop can consume the iterator directly."],
+     vars:"stack grows by one path per child"},
+
     {h:"Return failure",
-     p:["Identical to BFS."]},
-    {h:"Call and print",
-     p:["Run it and compare the visited list against BFS. Then read the answer to the question in the note panel."]}
+     p:["Identical to BFS. If the stack empties with no goal found, return <code>None</code> plus the visited record."],
+     py:["No new syntax."],
+     vars:"function complete"},
+
+    {h:"Call, print, and then think before concluding",
+     p:["Run it. DFS visits four nodes; BFS visited seven. It is tempting to conclude DFS is better.",
+        "It is not. DFS got <b>lucky</b>. The goal happened to sit under B, the first child it tried, so it walked almost straight to it and never looked at C, F, or G at all.",
+        "Move the goal to sit under G instead and re-run. DFS now explores the entire left subtree first &mdash; every node BFS visited, plus more &mdash; and becomes the slower algorithm on the identical graph.",
+        "The honest summary: BFS guarantees the shortest path and always visits a predictable number of nodes. DFS guarantees nothing about path quality and its node count depends entirely on where the goal happens to be relative to your successor ordering."],
+     py:["Same unpacking as before: <code>p, v = dfs(...)</code>."],
+     vars:"p = path found &nbsp;&middot;&nbsp; v = nodes visited (compare with BFS)"}
   ],
   run(){ return graphSearchFrames("dfs"); }
 });
@@ -662,30 +864,94 @@ LABS.push({
     {s:6,t:""},
     {s:7,t:"print(\"UCS:\", ucs('A', 'D'))", tag:"call"}
   ],
+  tagInfo:{
+    def:{t:"Setting up before the loop",
+      d:["<code>queue = [(0, [start])]</code> puts one entry in the queue: cost 0, path <code>['A']</code>. Cost 0 because we have not travelled anywhere yet.",
+         "Each queue entry is now a <b>tuple of two things</b>, not a bare path. The cost has to travel alongside the path, because there is nowhere else to keep it."]},
+    loop:{t:"while queue:",
+      d:["Anything left to explore? Yes, so go round again."]},
+    sort:{t:"queue.sort()",
+      d:["Python sorts a list of tuples by the <b>first element first</b>. Because cost is the first element, this orders the whole queue cheapest to dearest.",
+         "Look at the chips below: they rearrange every time this line runs. The cheapest entry is now at the front, ready for the next line to take it."]},
+    pop:{t:"cost, path = queue.pop(0)",
+      d:["<code>pop(0)</code> takes the front entry &mdash; which, thanks to the sort on the previous line, is the cheapest path found so far anywhere in the queue.",
+         "The tuple is unpacked into two variables in one line: the accumulated cost goes into <code>cost</code>, the route into <code>path</code>."]},
+    goal:{t:"if path[-1] == goal:",
+      d:["This is the most important line in the lab, and its <b>position</b> is what matters.",
+         "The test runs on the entry that was just <b>popped</b>, never on entries as they are generated. A finished path to the goal can sit in the queue for several rounds while cheaper options are explored first &mdash; and it must be allowed to, or the answer will be wrong."]},
+    expand:{t:"queue.append((cost + w, path + [n]))",
+      d:["For each neighbour, add a new entry whose cost is the old accumulated cost plus this edge's weight.",
+         "<code>cost + w</code> is the only new arithmetic in the entire program. Everything else is the BFS you already wrote."]},
+    call:{t:"print(\"UCS:\", ucs('A', 'D'))",
+      d:["The answer is a 3-hop route costing 4 &mdash; cheaper than either of the two 2-hop routes.",
+         "The cheapest path is the one with the <i>most</i> hops. That is the entire point of this lab."]}
+  },
   steps:[
-    {h:"Declare a WEIGHTED graph",
-     p:["An unweighted graph was <code>{'A': ['B','C']}</code>. A weighted graph stores <b>pairs</b>: <code>{'A': [('B',1), ('C',4)]}</code>.",
-        "Read <code>graph['A']</code> as: from A you can reach B for 1, or C for 4."]},
+    {h:"Declare a WEIGHTED graph &mdash; the values change shape",
+     p:["In Lab 2 a neighbour was just a name: <code>'A': ['B','C']</code>.",
+        "Now every edge carries a cost, so a neighbour becomes a <b>pair</b>: <code>'A': [('B',1), ('C',4)]</code>. The value is still a list, but its items are now tuples of <code>(neighbour, cost)</code> instead of bare strings.",
+        "Read <code>graph['A']</code> out loud as: from A you can reach B for 1, or C for 4.",
+        "Before writing another line, work out the three routes from A to D by hand. A&rarr;B&rarr;D costs 6. A&rarr;C&rarr;D costs 5. A&rarr;B&rarr;C&rarr;D costs <b>4</b>. Notice that the cheapest one has the most hops. When your program prints a 3-hop answer you need to already know that is correct and not a bug."],
+     py:["A list of tuples is an extremely common Python shape: <code>[('B',1), ('C',4)]</code>. Each item is a fixed-size pair.",
+        "You will unpack these later with <code>for n, w in ...</code>, which handles both elements in one line."],
+     vars:"graph &nbsp;(4 nodes, 5 weighted edges)"},
+
     {h:"Declare the function",
-     p:["Same signature as BFS. Only the inside changes."]},
-    {h:"The queue now holds (cost, path) tuples",
-     p:["<code>queue = [(0, [start])]</code>. The starting cost is 0 because we have not travelled anywhere yet.",
-        "<b>Cost must come first in the tuple.</b> This is not cosmetic — it is what makes the next step work."],
-     warn:"Writing <code>(path, cost)</code> instead makes <code>sort()</code> order alphabetically by path. The algorithm becomes meaningless."},
-    {h:"Sort, then take the cheapest",
-     p:["Python sorts a list of tuples by the <b>first element first</b>. Since cost is first, <code>sort()</code> orders the queue cheapest-to-dearest and <code>pop(0)</code> takes the cheapest.",
-        "Real programs use <code>heapq</code> instead of re-sorting every round. For a 4-node graph, <code>sort()</code> is clearer and just as correct."]},
-    {h:"Goal test AFTER popping — the critical rule",
-     p:["Watch the trace carefully. At one point the queue contains <code>(6, A-B-D)</code> — a <b>complete path to the goal, already found</b>. UCS refuses to take it, because a cheaper option is still waiting.",
-        "If you tested the goal when generating, the program would return 6 and you would never know it was wrong.",
-        "<b>UCS does not stop at the first goal it finds. It stops at the first goal it pops.</b>"]},
-    {h:"Expand: accumulate the cost",
-     p:["<code>for n, w in graph[path[-1]]</code> unpacks each <code>(neighbour, cost)</code> pair straight into two variables.",
-        "<code>cost + w</code> is the accumulated cost of the extended path. This is the only new arithmetic in the whole program."]},
+     p:["<code>def ucs(start, goal):</code> &mdash; the same two parameters as BFS. The signature does not change because the question being asked has not changed: find a route from here to there.",
+        "What changes is which route it returns. BFS returns the one with fewest edges; UCS returns the one with lowest total weight. On this graph those are different answers."],
+     py:["No new syntax."],
+     vars:"ucs(start, goal) defined"},
+
+    {h:"The queue now holds (cost, path) tuples &mdash; cost FIRST",
+     p:["<code>queue = [(0, [start])]</code>. Read the brackets carefully: a list, containing one tuple, whose second element is a list.",
+        "The starting cost is <code>0</code> because no edge has been traversed yet.",
+        "<b>The cost must be the first element of the tuple.</b> This is not a style preference &mdash; it is what makes the next step work at all, and getting it backwards silently destroys the algorithm.",
+        "Why carry the cost at all, rather than recompute it from the path when needed? Because you would be re-walking the whole path on every single comparison. Carrying a running total is both faster and simpler."],
+     py:["Python compares tuples <b>element by element, left to right</b>. It compares the first elements; only if those are equal does it look at the second. This behaviour is what the whole algorithm rests on.",
+        "So <code>(3, ['A','B'])</code> sorts before <code>(4, ['A'])</code>, because 3 &lt; 4 and the paths are never even looked at."],
+     warn:"Write <code>(path, cost)</code> instead and <code>sort()</code> orders <b>alphabetically by path</b>. The program still runs, still returns a path, and is completely meaningless. Nothing will warn you.",
+     vars:"queue = [(0, ['A'])]"},
+
+    {h:"Sort the queue, then take from the front",
+     p:["Two lines that work as a pair.",
+        "<code>queue.sort()</code> reorders the list in place. Because cost is the first tuple element, the queue is now ordered cheapest-first.",
+        "<code>cost, path = queue.pop(0)</code> then takes that cheapest entry and unpacks it into two variables.",
+        "Together these two lines are the <b>priority queue</b>. BFS took the oldest entry, DFS took the newest, UCS takes the cheapest &mdash; and that is the only structural difference between the three algorithms.",
+        "A production program would use <code>heapq</code>, which maintains the minimum incrementally in O(log n) instead of re-sorting the whole list every round. On a 4-node graph the difference is invisible, and <code>sort()</code> is far easier to read while learning. Swapping it in later is a two-line change."],
+     py:["<code>lst.sort()</code> rearranges the list itself and returns <code>None</code>. <code>sorted(lst)</code> returns a new list and leaves the original alone. Writing <code>queue = queue.sort()</code> sets <code>queue</code> to <code>None</code> &mdash; a very common and very confusing bug.",
+        "<code>cost, path = (4, ['A','B'])</code> is tuple unpacking, the same feature used in every lab so far."],
+     vars:"cost &nbsp;(accumulated so far) &nbsp;&middot;&nbsp; path"},
+
+    {h:"Goal test AFTER popping &mdash; the rule this whole lab exists to teach",
+     p:["The test itself looks unremarkable. Its <b>position</b> is everything.",
+        "Step through the execution and watch for this moment: the queue contains <code>(6, A-B-D)</code>. That is a <b>complete, finished path to the goal</b>, already discovered, sitting right there. And UCS refuses to take it &mdash; because <code>(3, A-B-C)</code> is cheaper and still unexplored.",
+        "Two rounds later, that unexplored option turns into <code>(4, A-B-C-D)</code>, and <i>that</i> is what gets returned. Cost 4, not 6.",
+        "If you had tested the goal at the moment a path was <b>generated</b> instead, the program would have returned 6 immediately and reported it as the answer. Nothing would crash. Nothing would warn you. You would simply be 50% wrong.",
+        "State the rule precisely: <b>UCS does not stop at the first goal it finds. It stops at the first goal it pops.</b> Only when a path reaches the front of a cost-sorted queue is it proven that nothing cheaper remains."],
+     py:["<code>path[-1]</code> again &mdash; the last node of the route. Same negative indexing as Lab 2."],
+     warn:"This is the single most common way to break UCS. The wrong version produces plausible output, which is what makes it dangerous.",
+     vars:"unchanged &mdash; this step only reads"},
+
+    {h:"Expand: accumulate the cost as you go",
+     p:["<code>for n, w in graph[path[-1]]:</code> looks up the current node's neighbours and unpacks each <code>(neighbour, cost)</code> pair straight into two variables: <code>n</code> for the name, <code>w</code> for the weight.",
+        "<code>queue.append((cost + w, path + [n]))</code> builds the new entry. Two things are extended at once: <code>cost + w</code> extends the running total, and <code>path + [n]</code> extends the route.",
+        "That <code>cost + w</code> is the only new arithmetic in the entire program. Structurally this is still the BFS you wrote in Lab 2."],
+     py:["<b>Unpacking in a for loop:</b> <code>for n, w in [('B',1), ('C',4)]</code> gives you <code>n='B', w=1</code> on the first pass. Python unpacks each tuple automatically as it iterates.",
+        "Note the double brackets in <code>append((cost + w, path + [n]))</code>. The outer pair belongs to the function call; the inner pair builds the tuple. Miss one and Python thinks you are passing two arguments to <code>append</code>, which raises <code>TypeError</code>."],
+     vars:"queue grows by one entry per neighbour"},
+
     {h:"Return failure",
-     p:["If the queue empties with no goal popped, no route exists."]},
-    {h:"Call and print",
-     p:["Run it. Expect <code>(4, ['A','B','C','D'])</code> — a 3-hop route, cheaper than both 2-hop routes."]}
+     p:["If the queue empties without a goal ever being popped, no route exists. Return <code>None</code>.",
+        "There is a subtle assumption here worth naming: UCS only terminates correctly if every edge cost is strictly greater than zero. Give it a zero-cost cycle and it can loop forever, always finding a \"new\" path at the same cost. You will test that in the exercises."],
+     py:["No new syntax."],
+     vars:"function complete"},
+
+    {h:"Call it and check against your hand calculation",
+     p:["Run it. Expect <code>(4, ['A','B','C','D'])</code>.",
+        "Now compare against Lab 2. BFS on this same graph would return <code>A&rarr;B&rarr;D</code> &mdash; two hops, cost 6. UCS returns three hops, cost 4.",
+        "Both algorithms are correct. They answer different questions. BFS minimises the <b>number of edges</b>; UCS minimises the <b>total weight</b>. If you were writing navigation software you would want UCS, because a driver cares about time and distance, not about how many junctions they pass through."],
+     py:["<code>print(\"UCS:\", ucs('A','D'))</code> &mdash; the function call is evaluated first, and its return value is passed straight to <code>print</code>."],
+     vars:"program complete"}
   ],
   run(){ return weightedFrames("ucs"); }
 });
@@ -738,33 +1004,101 @@ LABS.push({
     {s:7,t:'print("Greedy path :", path)'},
     {s:7,t:'print("Actual cost :", cost)'}
   ],
+  tagInfo:{
+    cost:{t:"Inside cost_of(path)",
+      d:["This helper walks the finished path edge by edge and adds up what it really cost.",
+         "It exists only because greedy never tracked cost during the search. There is nothing to report at the end unless you go back and measure."]},
+    def:{t:"Setting up before the loop",
+      d:["<code>queue = [(h[start], [start])]</code>. The first element of the tuple is the <b>heuristic</b>, not the cost.",
+         "Compare with UCS, where the first element was the accumulated cost. Same structure; different number. That number is the algorithm."]},
+    loop:{t:"while queue:",
+      d:["Anything left in the queue? Yes, continue."]},
+    sort:{t:"queue.sort()  &nbsp;&mdash; sorting by h alone",
+      d:["The queue is ordered by its first element, which here is <code>h</code>. So the node that <i>looks</i> closest to the goal moves to the front.",
+         "Nothing in this ordering knows what any path cost to reach. Greedy is sorting on a guess about the future while completely ignoring the past."]},
+    pop:{t:"_, path = queue.pop(0)",
+      d:["Take the front entry &mdash; the one with the smallest <code>h</code>.",
+         "The underscore discards the heuristic value. It has done its only job, which was to determine the sort order."]},
+    goal:{t:"if node == goal:",
+      d:["If this is the goal, greedy stops immediately and only <b>now</b> calls <code>cost_of</code> to find out what the route actually cost.",
+         "It never had to know before this moment, because nothing in the algorithm ever consulted the cost."]},
+    expand:{t:"queue.append((h[n], path + [n]))  &nbsp;&mdash; w discarded",
+      d:["The loop header <code>for n, w in graph[node]</code> hands us both the neighbour <b>and</b> the real edge cost.",
+         "This line uses <code>n</code> and silently drops <code>w</code>. The information greedy needs is right there in a variable, unused."],
+      },
+    call:{t:"path, cost = greedy('S', 'G')",
+      d:["The result comes back. Compare it against the best possible route before deciding what the number means."]}
+  },
   steps:[
-    {h:"Declare the graph and the heuristic SEPARATELY",
-     p:["<code>graph</code> holds the real world: roads and what they actually cost.",
-        "<code>h</code> holds the estimate. Keeping them in two dictionaries means you can swap heuristics without touching the map."]},
-    {h:"Declare the heuristic dictionary",
-     p:["Before trusting <code>h</code>, check it never overestimates. True remaining costs are S=5, A=10, B=4, G=0. Our values 4, 2, 3, 0 are all smaller or equal.",
-        "So <code>h</code> is <b>admissible</b>. It is a perfectly good heuristic. Remember that when greedy fails — the failure is not the heuristic's fault."]},
+    {h:"Declare the graph and the heuristic as SEPARATE dictionaries",
+     p:["<code>graph</code> holds the real world: which roads exist and what they actually cost to drive.",
+        "<code>h</code> will hold the estimate &mdash; a guess at the remaining distance, like a straight-line measurement on a map that ignores which roads actually exist.",
+        "Keep them apart. Two dictionaries means you can swap in a different heuristic without touching the map, and it makes obvious which numbers are facts and which are guesses. Merging them into one structure blurs that distinction, and the distinction is the entire subject of this lab."],
+     py:["Same shape as UCS: <code>{'S': [('A',2), ('B',1)]}</code> &mdash; a dictionary of lists of tuples."],
+     vars:"graph &nbsp;(4 nodes, 4 weighted edges)"},
+
+    {h:"Declare the heuristic &mdash; then verify it before trusting it",
+     p:["<code>h = {'S': 4, 'A': 2, 'B': 3, 'G': 0}</code>. A flat dictionary from node name to a single number.",
+        "Before using it, check whether it lies. A heuristic is <b>admissible</b> if it never overestimates the true remaining cost.",
+        "Work out the true costs by hand. From B the only route to G costs 4. From A the only route costs 10. From S the best route is S&rarr;B&rarr;G, costing 5. From G it is 0.",
+        "Compare: h(S)=4 &le; 5 ✓, h(A)=2 &le; 10 ✓, h(B)=3 &le; 4 ✓, h(G)=0 &le; 0 ✓. Every value is at or below the truth.",
+        "<b>So this heuristic is admissible. It is a genuinely good heuristic.</b> Hold on to that fact, because in a few steps greedy will return an answer 140% too expensive using it &mdash; and you will need to know the heuristic is not to blame."],
+     py:["A dictionary can map to plain numbers, not just lists. <code>h['A']</code> gives <code>2</code>.",
+        "<code>h[node]</code> where <code>node</code> is a variable holding <code>'A'</code> does the same lookup. Keys can be supplied by variables."],
+     vars:"h &nbsp;(admissible: verified against true costs 5, 10, 4, 0)"},
+
     {h:"Write cost_of to measure a finished path",
-     p:["Greedy never tracks cost while running, so you need a way to measure the damage afterwards.",
-        "<code>zip(path, path[1:])</code> pairs each node with the next one: <code>['S','A','G']</code> becomes <code>[('S','A'), ('A','G')]</code> — exactly the edges.",
-        "The inner list comprehension scans <code>graph[a]</code> and keeps the cost <code>w</code> where the neighbour <code>n</code> equals <code>b</code>. The <code>[0]</code> pulls the number out of the one-item list."],
-     warn:"Forget the <code>[0]</code> and Python tries to add lists together: <code>TypeError</code>."},
-    {h:"Declare the queue — (h, path)",
-     p:["Compare with the last two labs. UCS queue: <code>(cost, path)</code>, sorted by <code>g</code>. Greedy queue: <code>(h, path)</code>, sorted by <code>h</code>.",
-        "Same structure, different first element. <b>That first element is the algorithm.</b>"]},
-    {h:"Sort by h and pop",
-     p:["<code>_, path = queue.pop(0)</code>. The underscore is a Python convention meaning \"I have to unpack this value but I do not need it.\"",
-        "We need the path; we do not need the h value once it has done its job of sorting."]},
-    {h:"Goal test, then measure",
-     p:["Only here, at the very end, do we call <code>cost_of</code>. Greedy is <i>defined</i> by not tracking cost during the search, so measuring earlier would defeat the point."]},
-    {h:"Expand — and look hard at this line",
-     p:["<code>for n, w in graph[node]</code> gives us the neighbour <code>n</code> <b>and</b> the real edge cost <code>w</code>.",
-        "Then <code>queue.append((h[n], path + [n]))</code> uses <code>n</code> and <b>throws <code>w</code> away</b>. It is never used.",
-        "That is the answer to the question. Greedy has the cost information available and chooses not to use it."],
-     warn:"This one line is the bug, and it is deliberate. Lab 5 changes exactly this line and the cost drops from 12 to 5."},
-    {h:"Call and print",
-     p:["Run it. Watch round 2: h(A)=2 beats h(B)=3, so greedy commits to A — and never looks at B again."]}
+     p:["Greedy never tracks cost while it runs, so at the end there is nothing to report unless you go back and measure. This helper does that.",
+        "Build it in three stages rather than typing the whole thing at once.",
+        "<b>Stage 1</b> &mdash; get the edges. <code>zip(path, path[1:])</code> pairs each node with the one after it. Given <code>['S','A','G']</code>, <code>path[1:]</code> is <code>['A','G']</code>, and zipping them gives <code>[('S','A'), ('A','G')]</code> &mdash; exactly the two edges travelled.",
+        "<b>Stage 2</b> &mdash; look up one edge. <code>[w for n, w in graph[a] if n == b]</code> scans the neighbours of <code>a</code> and keeps the weight where the neighbour name matches <code>b</code>. It returns a <i>list</i> with one number in it, so <code>[0]</code> pulls the number out.",
+        "<b>Stage 3</b> &mdash; add them all. <code>sum(...)</code> over the generator totals the weights."],
+     py:["<b>Slicing:</b> <code>path[1:]</code> means \"from index 1 to the end\" &mdash; the list without its first item.",
+        "<b>zip:</b> pairs up two sequences item by item and stops at the shorter one. That is why offsetting by one gives exactly the consecutive pairs.",
+        "<b>List comprehension:</b> <code>[expr for vars in seq if cond]</code> builds a list in one line. It is equivalent to a <code>for</code> loop with an <code>if</code> and an <code>append</code> inside."],
+     warn:"Forget the trailing <code>[0]</code> and <code>sum</code> tries to add lists to a number: <code>TypeError: unsupported operand type(s)</code>. The comprehension returns <code>[2]</code>, not <code>2</code>.",
+     vars:"cost_of(path) &nbsp;&mdash; a measuring tool, not part of the search"},
+
+    {h:"Declare the queue &mdash; and notice what changed",
+     p:["<code>queue = [(h[start], [start])]</code>. Structurally identical to UCS: a list of tuples, each holding a number and a path.",
+        "But look at which number. UCS put the <b>accumulated cost g</b> first. Greedy puts the <b>heuristic h</b> first.",
+        "That is the entire difference between the two algorithms, and it is one dictionary lookup. Everything else &mdash; the loop, the sort, the pop, the expansion &mdash; is the same code.",
+        "Say it as a rule: <b>the first element of the queue tuple is the algorithm.</b> Change it and you have changed which search you are running."],
+     py:["<code>h[start]</code> looks up the heuristic value for whatever node <code>start</code> holds. When <code>start</code> is <code>'S'</code> this evaluates to <code>4</code>."],
+     vars:"queue = [(4, ['S'])] &nbsp;&mdash; that 4 is h(S), not a cost"},
+
+    {h:"Sort by h, then pop &mdash; and discard the sort key",
+     p:["<code>queue.sort()</code> orders by the first element, which is <code>h</code>. So whichever node <i>looks</i> closest to the goal comes to the front.",
+        "<code>_, path = queue.pop(0)</code> takes it and unpacks it. The underscore is a Python convention meaning \"I have to unpack this value but I do not need it.\"",
+        "That underscore is worth pausing on. The heuristic value has done its one job &mdash; determining sort order &mdash; and is then thrown away. Nothing in this loop ever consults how much has already been spent, because <b>that number was never put into the tuple in the first place</b>."],
+     py:["<code>_</code> is an ordinary variable name that Python treats no differently. The convention signals to a human reader that the discard is deliberate, not an oversight.",
+        "You could write <code>hval, path = queue.pop(0)</code> instead; the underscore just documents that <code>hval</code> is never used again."],
+     vars:"path &nbsp;&middot;&nbsp; node &nbsp;&mdash; note there is no cost variable anywhere"},
+
+    {h:"Goal test, and only now measure the damage",
+     p:["<code>if node == goal:</code> &mdash; same position as always, immediately after the pop.",
+        "<code>return path, cost_of(path)</code> is where the helper finally gets used. This is the first and only moment in the entire program that greedy looks at real edge costs.",
+        "Calling <code>cost_of</code> earlier, inside the loop, would technically work &mdash; but it would defeat the purpose. Greedy is <i>defined</i> by not consulting cost during the search. Measuring at the end is honest; measuring during would be a different algorithm wearing greedy's name."],
+     py:["A function call can appear directly inside a <code>return</code>. <code>cost_of(path)</code> is evaluated first and its result is returned alongside <code>path</code>."],
+     vars:"unchanged until the goal is reached"},
+
+    {h:"Expand &mdash; and look very hard at this one line",
+     p:["<code>for n, w in graph[node]:</code> unpacks each neighbour pair. After this line runs, <code>n</code> holds the neighbour's name and <code>w</code> holds <b>the real cost of that road</b>.",
+        "Then: <code>queue.append((h[n], path + [n]))</code>.",
+        "Read it again. It uses <code>n</code>. It does not use <code>w</code>. The variable is sitting right there, correctly filled in with exactly the information greedy needs, and the line steps over it.",
+        "<b>That is the answer to the lab question.</b> Greedy does not fail because the map is bad or the heuristic lies &mdash; you verified in step 2 that the heuristic is admissible. It fails because this single line discards the cost.",
+        "Trace the consequence. From S, greedy compares h(A)=2 against h(B)=3, picks A because 2 is smaller, and never looks at B again. But the road A&rarr;G costs 10 while B&rarr;G costs 4. Greedy had the number 10 in the variable <code>w</code> and threw it away."],
+     py:["A loop variable that is never used inside the loop body is a code smell in most languages. Here it is deliberate and it is the lesson."],
+     warn:"Lab 5 changes exactly this line and nothing else of substance. The cost drops from 12 to 5.",
+     vars:"queue grows &mdash; entries keyed on h only"},
+
+    {h:"Call, print, and compare against the truth",
+     p:["<code>path, cost = greedy('S', 'G')</code> unpacks the two returned values.",
+        "Run it. Greedy returns <code>['S','A','G']</code> at a real cost of <b>12</b>. The best possible route is <code>['S','B','G']</code> at <b>5</b>. Greedy is 140% too expensive.",
+        "Now look at the other column: greedy expanded only <b>3</b> nodes. It is genuinely fast. On a problem so large that any answer beats no answer, that speed can be worth having.",
+        "The honest summary: greedy asks \"how far do I still have to go?\" and never asks \"how much have I already spent?\" It is fast, it is incomplete in tree form, and it is not optimal. Lab 5 fixes exactly that by asking both questions at once."],
+     py:["<code>path, cost = greedy(...)</code> &mdash; unpacking a two-value return, same as every lab so far."],
+     vars:"path = ['S','A','G'] &nbsp;&middot;&nbsp; cost = 12 &nbsp;(optimal is 5)"}
   ],
   run(){ return heurFrames("greedy"); }
 });
@@ -822,34 +1156,531 @@ LABS.push({
     {s:7,t:'print("A* path :", path)'},
     {s:7,t:'print("Cost    :", cost)'}
   ],
+  tagInfo:{
+    adm:{t:"Checking the heuristic before trusting it",
+      d:["This loop compares every heuristic value against the true remaining cost and prints OK or VIOLATION.",
+         "A*'s optimality is a <b>conditional</b> guarantee, and this is the condition. Run this check before believing any result A* produces."]},
+    def:{t:"Setting up before the loop",
+      d:["<code>queue = [(h[start], 0, [start])]</code>. Three elements now: <code>f=4</code>, <code>g=0</code>, path <code>['S']</code>.",
+         "At the start <code>g</code> is 0 because nothing has been travelled, so <code>f</code> is just <code>h(S)</code>."]},
+    loop:{t:"while queue:",
+      d:["Anything left to explore? Yes, continue."]},
+    sort:{t:"queue.sort()  &nbsp;&mdash; sorting by f = g + h",
+      d:["The queue orders by the first element, <code>f</code>, which combines what a path has already cost with what it is estimated still to need.",
+         "When two entries tie on <code>f</code>, Python moves to the second element, <code>g</code>, and the path that has spent less goes first."]},
+    pop:{t:"f, g, path = queue.pop(0)",
+      d:["Take the entry with the smallest <code>f</code> &mdash; the route that currently looks like it will finish cheapest overall.",
+         "All three values are unpacked. Unlike greedy, nothing is discarded: <code>g</code> is needed for the arithmetic below and is the value that will eventually be returned."]},
+    goal:{t:"if node == goal:  &rarr; return path, g",
+      d:["When the goal is popped, <code>g</code> is already the exact cost of the route. There is nothing to measure and no helper function to call.",
+         "Because the queue is sorted by <code>f</code> and <code>h</code> never overestimates, no cheaper route can still be hiding in the queue. That is the optimality argument in one sentence."]},
+    expand:{t:"queue.append((g + w + h[n], g + w, path + [n]))",
+      d:["The edge cost <code>w</code> is used <b>twice</b>: once to extend the real cost, once inside the new estimate.",
+         "Greedy had this same <code>w</code> available and discarded it. That is the whole difference between the two programs."]},
+    call:{t:"path, cost = astar('S', 'G')",
+      d:["Cost 5 &mdash; optimal. Greedy returned 12 on this identical graph with this identical heuristic."]}
+  },
   steps:[
-    {h:"Start from your Lab 4 program, unchanged",
-     p:["Same graph, same heuristic, same everything. Copy it across. You are about to change three lines."]},
-    {h:"Add an admissibility check before you trust anything",
-     p:["A*'s optimality is a <b>conditional</b> guarantee. The condition is that <code>h</code> never overestimates.",
-        "If <code>h</code> overestimates anywhere, A* can return a suboptimal answer with <b>no error message</b>. Nothing crashes. The program cheerfully prints a wrong number.",
-        "So verify it. On a real project you will not have a <code>true_cost</code> table, which is why admissibility must be argued from the <i>meaning</i> of the heuristic — straight-line distance can never exceed road distance."]},
+    {h:"Start from your Lab 4 program, completely unchanged",
+     p:["Same graph. Same heuristic. Same four nodes, same four edges, same four <code>h</code> values.",
+        "Copy the whole thing across before changing anything. The point of this lab is that a 140%-wrong program becomes an optimal one by changing three lines &mdash; and you can only see that if everything else is held identical.",
+        "One thing you will <b>not</b> need: the <code>cost_of</code> helper. A* tracks the cost as it goes, so there will be nothing to measure at the end."],
+     py:["No new syntax &mdash; this is Lab 4's code verbatim."],
+     vars:"graph &nbsp;&middot;&nbsp; h"},
+
+    {h:"Add an admissibility check before you trust a single result",
+     p:["A* is guaranteed to return the optimal path, but that guarantee has a condition attached: <code>h</code> must never overestimate the true remaining cost.",
+        "Here is why this matters more than it sounds. If <code>h</code> overestimates somewhere, A* can close the goal via a worse route and return a suboptimal answer <b>with no error message at all</b>. Nothing crashes. No exception. The program cheerfully prints a wrong number and you have no way to tell.",
+        "So verify it explicitly. The loop walks every node, compares <code>h[node]</code> against the true cost, and prints OK or VIOLATION.",
+        "On a real project you will not have a <code>true_cost</code> table &mdash; if you did, you would not need the search. Admissibility must instead be argued from the <b>meaning</b> of the heuristic. Straight-line distance is admissible because no road can be shorter than the straight line between two points. That argument, not a table, is what you rely on in practice."],
+     py:["<code>for node in h:</code> iterates over a dictionary's <b>keys</b>. To get keys and values together you would write <code>for k, v in h.items():</code>.",
+        "<b>Conditional expression:</b> <code>a if condition else b</code> evaluates to <code>a</code> when the condition holds, otherwise <code>b</code>. It is an expression, so it can sit on the right of an assignment.",
+        "<b>f-string:</b> <code>f\"h({node}) = {h[node]}\"</code> substitutes each <code>{...}</code> with the value inside it. Note the <code>f</code> before the opening quote &mdash; without it you get the braces printed literally."],
+     vars:"true_cost &nbsp;&middot;&nbsp; verification printed before the search runs"},
+
     {h:"Declare the function",
-     p:["Identical to greedy's signature."]},
-    {h:"CHANGE 1 — the queue holds three things, not two",
+     p:["<code>def astar(start, goal):</code> &mdash; same signature as greedy and as every search before it. The question has not changed; only the method of answering it has."],
+     py:["No new syntax."],
+     vars:"astar(start, goal) defined"},
+
+    {h:"CHANGE 1 &mdash; the queue holds three things, not two",
      p:["Greedy: <code>(h, path)</code>. A*: <code>(f, g, path)</code>.",
-        "<code>f</code> must be first, because <code>sort()</code> orders by the first element and A* must expand smallest <code>f</code> first.",
-        "<code>g</code> must be carried explicitly. You cannot recompute it from the path each round — that is what <code>cost_of</code> did, and it is wasteful. The starting <code>g</code> is 0."]},
-    {h:"CHANGE 2 — unpack all three",
-     p:["Greedy discarded the sort key with <code>_</code>. A* needs all three values: <code>f</code> and <code>g</code> to display, <code>path</code> to work with.",
-        "Ties are broken by the second element, <code>g</code>. So when two paths have the same <code>f</code>, the one that has spent less goes first."]},
-    {h:"Goal test — and note what is returned",
-     p:["Greedy returned <code>cost_of(path)</code> because it never tracked cost. A* returns <code>g</code> directly, because it has been tracking it all along.",
-        "The <code>cost_of</code> function is no longer needed at all."]},
-    {h:"CHANGE 3 — use w instead of discarding it",
-     p:["Greedy wrote <code>queue.append((h[n], path + [n]))</code> and threw <code>w</code> away.",
-        "A* writes <code>g + w</code> for the new cost-so-far, and <code>g + w + h[n]</code> for the new estimated total.",
-        "The edge cost <code>w</code> is now used <b>twice</b>. That is the entire difference between the two algorithms."],
-     warn:"Add <code>h</code> to both slots by mistake and <code>g</code> becomes corrupted — the program will report <code>f</code> as the cost and you will get the wrong number."},
-    {h:"Call and print",
-     p:["Run it and watch round 3, where A* expands A even though a completed goal path is already sitting in the queue. That is the moment to understand."]}
+        "<b>Why <code>f</code> must be first.</b> <code>sort()</code> orders by the first tuple element, and A* must expand the smallest <code>f</code> first. Put anything else there and you are running a different algorithm.",
+        "<b>Why <code>g</code> must be carried explicitly.</b> You could recompute it from the path each round &mdash; that is exactly what <code>cost_of</code> did in Lab 4 &mdash; but that means re-walking the entire path on every single comparison. Carrying a running total is both faster and simpler. You could also recover it as <code>f - h</code>, but that breaks the moment you change the heuristic.",
+        "The starting <code>g</code> is <code>0</code>, so the starting <code>f</code> is just <code>h(S)</code> = 4.",
+        "Understand what <code>f</code> <i>means</i> before moving on: <code>f = g + h</code> is the <b>estimated total cost of a complete journey that passes through this node</b> &mdash; what has been spent, plus what is still expected. Sorting by it means always working on whichever route currently looks like it will finish cheapest overall."],
+     py:["A tuple can hold any number of elements. Python still compares them left to right, so a 3-tuple sorts by element 0, then element 1, then element 2."],
+     vars:"queue = [(4, 0, ['S'])] &nbsp;&mdash; f, g, path"},
+
+    {h:"CHANGE 2 &mdash; unpack all three values",
+     p:["Greedy wrote <code>_, path = queue.pop(0)</code> and threw the sort key away. A* needs everything: <code>f, g, path = queue.pop(0)</code>.",
+        "<code>g</code> in particular is not optional. It is the number the expansion arithmetic builds on, and it is the value returned as the final answer.",
+        "<b>Tie-breaking.</b> Watch what happens early in the run: <code>S-A</code> has f=4 and <code>S-B</code> has f=4 as well. Python compares the first elements, finds them equal, and moves to the second &mdash; so <code>g=1</code> beats <code>g=2</code> and <code>S-B</code> goes first.",
+        "That rule is arbitrary. Breaking ties toward the <i>larger</i> <code>g</code> (preferring paths already closer to the goal) is usually faster in practice. Either way the final answer is identical; only the order of expansion changes."],
+     py:["Unpacking must match the tuple length exactly. <code>f, path = queue.pop(0)</code> on a 3-tuple raises <code>ValueError: too many values to unpack</code>."],
+     vars:"f &nbsp;&middot;&nbsp; g &nbsp;&middot;&nbsp; path &nbsp;&middot;&nbsp; node &nbsp;&mdash; all four in use"},
+
+    {h:"Goal test &mdash; and notice what is returned",
+     p:["<code>return path, g</code>.",
+        "Greedy returned <code>cost_of(path)</code> because it had never tracked cost and had to go back and measure. A* returns <code>g</code> directly, because it has been carrying the exact cost in a variable the entire time.",
+        "<b>The <code>cost_of</code> helper is now dead code.</b> Delete it. That is a good sign in general: when an algorithm improves, the workarounds it needed usually disappear rather than accumulate.",
+        "Why is the first goal popped guaranteed optimal? Because the queue is sorted by <code>f</code>, and <code>h</code> never overestimates. Any route still in the queue has <code>f</code> at least as large as the one just popped, and its <code>f</code> is a <i>lower bound</i> on its true total cost. So nothing cheaper can be hiding."],
+     py:["Returning a variable rather than a computed expression is both faster and clearer about intent."],
+     vars:"g is the answer &mdash; no measurement needed"},
+
+    {h:"CHANGE 3 &mdash; use w instead of discarding it",
+     p:["Greedy wrote: <code>queue.append((h[n], path + [n]))</code>. The variable <code>w</code> was available and unused.",
+        "A* writes: <code>queue.append((g + w + h[n], g + w, path + [n]))</code>.",
+        "Take the two new expressions separately. <code>g + w</code> is the <b>new g</b> &mdash; whatever had been spent, plus the cost of this one edge. <code>g + w + h[n]</code> is the <b>new f</b> &mdash; that new cost plus the estimate from the new node.",
+        "<b>The edge cost <code>w</code> now appears twice.</b> That is the entire difference between a program that returns 12 and one that returns 5.",
+        "Trace the consequence on the actual graph. Greedy compared h(A)=2 against h(B)=3 and picked A. A* compares f(S-A) = 2+2 = 4 against f(S-B) = 1+3 = 4, ties, breaks on <code>g</code>, and explores B. It later expands A too &mdash; because f=4 still looked promising &mdash; discovers the A&rarr;G road really costs 10 giving f=12, and abandons it."],
+     py:["The <code>append</code> call spans three lines. Python allows this freely inside brackets; the statement ends when the outermost bracket closes.",
+        "Watch the bracket count: <code>append(( ... ))</code>. The outer pair is the function call, the inner pair builds the tuple."],
+     warn:"Put <code>g + w + h[n]</code> into <b>both</b> slots by mistake and <code>g</code> becomes corrupted. The program will return <code>f</code> as if it were the cost, and the number will be wrong with no error raised.",
+     vars:"queue entries now carry both a real cost and an estimate"},
+
+    {h:"Call, print, and watch for the one confusing moment",
+     p:["Run it. A* returns <code>['S','B','G']</code> at cost <b>5</b> &mdash; optimal, on the same graph where greedy returned 12.",
+        "Now step to round 3 in the animation, because this is the moment students most often report as a bug. The queue contains <code>f=4, S-A</code> and <code>f=5, S-B-G</code>. There is a <b>completed path to the goal</b> sitting there &mdash; and A* expands A instead.",
+        "That is correct, and here is why. <code>f(S-A) = 4</code> is less than 5, and because <code>h</code> never overestimates, 4 is a genuine <i>lower bound</i> on what a route through A could cost. A route through A might still finish at 4, which would beat the 5 already found. A* is obliged to check.",
+        "It checks, finds the A&rarr;G road costs 10, computes f=12, and drops that branch. Only then does it return the 5.",
+        "State the principle: <b>A* explores every branch that could still win, and stops only when the best remaining option is a finished goal.</b> That is exactly why it never returns a suboptimal answer &mdash; and also why it does slightly more work than greedy."],
+     py:["<code>path, cost = astar(...)</code> &mdash; the same unpacking pattern used in every lab."],
+     vars:"path = ['S','B','G'] &nbsp;&middot;&nbsp; cost = 5 &nbsp;(greedy: 12)"}
   ],
   run(){ return heurFrames("astar"); }
+});
+
+/* =========================================================================
+   LAB 6 — HILL CLIMBING
+   ========================================================================= */
+LABS.push({
+  id:"hill", tab:"Hill climbing", num:"07",
+  title:"Hill Climbing and the local maximum problem",
+  question:`
+    <h2>The question</h2>
+    <div class="title">Lab 6 &middot; Hill climbing and local extrema</div>
+    <p>Find the value of <code>x</code> in the range 0 to 6 that <b>maximises</b></p>
+    <p style="font-family:var(--mono);font-size:16px;margin:10px 0"><b>g(x) = sin(x) + sin(3x)/3</b></p>
+    <p>This function is deliberately <b>bumpy</b>: it has several peaks of different heights. The tallest one &mdash; the <b>global maximum</b> &mdash; sits at <code>x &asymp; 2.356</code> where <code>g = 0.943</code>. There is a much lower peak near <code>x &asymp; 4.75</code>.</p>
+    <p><b>Write a program that</b> starts at some <code>x</code>, repeatedly looks one <b>step</b> to the left and one step to the right, moves to whichever is higher, and stops when neither is better.</p>
+    <p><b>Then run it twice</b> &mdash; once from <code>x = 0.5</code> and once from <code>x = 4.0</code> &mdash; and explain why the same program gives two completely different answers.</p>
+    <p><b>Answer this:</b> hill climbing has no queue, no visited set, and no memory of anywhere it has been. Which of those missing pieces causes the failure?</p>`,
+  qLabel:"the two neighbours being compared",
+  viz:"curve",
+  code:[
+    {s:0,t:"# LAB 6: Hill Climbing on a bumpy function"},
+    {s:0,t:"import math"},
+    {s:0,t:""},
+    {s:1,t:"def g(x):", tag:"obj"},
+    {s:1,t:'    """The objective function. Bigger is better."""'},
+    {s:1,t:"    return math.sin(x) + math.sin(3*x)/3"},
+    {s:1,t:""},
+    {s:2,t:"def hill_climb(start, step=0.25):", tag:"def"},
+    {s:2,t:"    x = start                     # the ONLY thing we remember"},
+    {s:2,t:""},
+    {s:3,t:"    while True:", tag:"loop"},
+    {s:4,t:"        left  = x - step          # look one step left", tag:"look"},
+    {s:4,t:"        right = x + step          # look one step right"},
+    {s:4,t:""},
+    {s:5,t:"        best = left if g(left) > g(right) else right", tag:"pick"},
+    {s:5,t:""},
+    {s:6,t:"        if g(best) <= g(x):       # no neighbour is better", tag:"stop"},
+    {s:6,t:"            return x, g(x)        # we are on a peak -> STOP"},
+    {s:6,t:""},
+    {s:7,t:"        x = best                  # climb, and repeat", tag:"move"},
+    {s:7,t:""},
+    {s:8,t:'print("from x=0.5 :", hill_climb(0.5))', tag:"call"},
+    {s:8,t:'print("from x=4.0 :", hill_climb(4.0))'}
+  ],
+  tagInfo:{
+    obj:{t:"Evaluating g(x)",
+      d:["The objective function is being called. It takes one number and returns one number &mdash; how good that position is.",
+         "Hill climbing knows nothing else about the problem. It cannot see the shape of the curve; it can only ask \"what is the value <i>here</i>?\" one point at a time."]},
+    def:{t:"Setting up",
+      d:["<code>x = start</code>. That is the whole state of the algorithm.",
+         "There is no queue, no frontier, no visited set. Compare that with every previous lab, where the queue was the algorithm. Hill climbing keeps a single number."]},
+    loop:{t:"while True:",
+      d:["An infinite loop. Nothing in the condition can end it &mdash; the only way out is the <code>return</code> further down.",
+         "That is safe here because the <code>return</code> is guaranteed to fire: either a neighbour is better and we move, or none is and we stop."]},
+    look:{t:"left = x - step &nbsp;/&nbsp; right = x + step",
+      d:["Two candidate positions, one step either side of where we are. These are the <b>neighbours</b>.",
+         "The purple markers on the curve show them. Notice how narrow the view is &mdash; the algorithm sees exactly two points and nothing else about the entire function."]},
+    pick:{t:"best = left if g(left) > g(right) else right",
+      d:["Compare the two neighbours and keep whichever is higher. This is <b>steepest ascent</b>: always take the best available move.",
+         "The comparison is only between the two neighbours. Whether either of them beats the current position is a separate question, asked on the next line."]},
+    stop:{t:"if g(best) <= g(x):  &rarr; the stopping test",
+      d:["Is the better neighbour actually an improvement on where we already are?",
+         "If <b>yes</b>, we keep climbing. If <b>no</b>, both neighbours are lower than us, so we are standing on a peak and the function returns."]},
+    move:{t:"x = best",
+      d:["Step onto the higher neighbour. The old position is discarded completely &mdash; nothing records that we were ever there.",
+         "The loop then repeats from the new position."]},
+    call:{t:"Two runs, two very different answers",
+      d:["The same program, the same function, the same step size. Only the starting point differed.",
+         "From 0.5 it climbed to a peak of 0.941. From 4.0 it climbed to a peak of &minus;0.668. Both stopped legitimately: in each case neither neighbour was any better."]}
+  },
+  steps:[
+    {h:"Import math and understand what changed",
+     p:["Every lab so far searched a <b>graph</b>: a set of named nodes joined by edges. This lab searches a <b>function</b>, where the states are numbers and the neighbours are computed by arithmetic rather than looked up in a dictionary.",
+        "That difference is why there is no <code>graph</code> variable in this program. The neighbours of <code>2.5</code> are <code>2.25</code> and <code>2.75</code> &mdash; you calculate them; you do not store them. A continuous range has infinitely many states, so a dictionary was never an option.",
+        "<code>import math</code> gives access to <code>math.sin</code>. Without it, <code>sin</code> is simply undefined."],
+     py:["<code>import math</code> loads the standard maths module. Functions inside it are then reached with a dot: <code>math.sin(x)</code>, <code>math.exp(x)</code>, <code>math.pi</code>.",
+        "Nothing needs installing &mdash; <code>math</code> ships with Python."],
+     vars:"none yet"},
+
+    {h:"Define the objective function",
+     p:["<code>g(x)</code> is the thing being maximised. Give it a number, get back a score. Bigger is better.",
+        "This is the <b>only</b> way the algorithm can learn anything about the problem. It cannot see the shape of the curve, cannot compute a derivative, cannot know where the peaks are. It can ask \"what is the value at this exact point?\" and nothing more.",
+        "That restriction is the entire reason local search exists. When you can plot a function you do not need an algorithm to find its maximum &mdash; you can see it. Local search is for the cases where evaluating one point is all you can afford, and there are far too many points to try."],
+     py:["<code>math.sin(x)</code> works in <b>radians</b>, not degrees. The range 0 to 6 is therefore just under one full circle.",
+        "<code>/3</code> divides the second wave's height by three, which is what makes the small bumps small."],
+     vars:"g(x) &nbsp;&mdash; the objective function"},
+
+    {h:"Declare the function and the one variable it keeps",
+     p:["<code>def hill_climb(start, step=0.25):</code> takes a starting position and a step size. <code>step=0.25</code> is a <b>default value</b>: call it without a second argument and 0.25 is used.",
+        "Then a single line of state: <code>x = start</code>.",
+        "Stop and compare that with everything before it. BFS kept a queue. UCS kept a cost-sorted queue. A* kept a queue of three-element tuples. Hill climbing keeps <b>one number</b>.",
+        "That is not a simplification for teaching &mdash; it is the defining property. Hill climbing uses constant memory no matter how large the problem is, which is exactly why it is used on problems too big for any queue to fit in RAM. Everything it gives up follows from that one choice."],
+     py:["<b>Default parameter:</b> <code>def f(a, b=5)</code> lets you call <code>f(1)</code> or <code>f(1, 9)</code>. Defaults must come after non-default parameters.",
+        "Never use a mutable default such as <code>b=[]</code> &mdash; it is created once and shared across all calls, which surprises everyone at least once."],
+     vars:"x &nbsp;&mdash; the entire state of the algorithm"},
+
+    {h:"Open an infinite loop",
+     p:["<code>while True:</code> has no exit condition at all. The loop runs until something inside it returns.",
+        "This looks alarming and is fine here, because the <code>return</code> two steps below is guaranteed to be reached. Each pass either finds a better neighbour and moves, or finds none and returns. Since the function is bounded above, it cannot climb forever.",
+        "Write it this way rather than inventing a counter. A counter would be a lie: the loop does not run a fixed number of times, it runs until a condition is met, and <code>while True</code> plus <code>return</code> says exactly that."],
+     py:["<code>True</code> is capitalised in Python. <code>while true:</code> raises <code>NameError</code>.",
+        "<code>return</code> exits the whole function immediately, including from inside any loop. <code>break</code> would only exit the loop."],
+     vars:"x &nbsp;(unchanged so far)"},
+
+    {h:"Look one step left and one step right",
+     p:["<code>left = x - step</code> and <code>right = x + step</code> compute the two <b>neighbours</b> of the current position.",
+        "Pause on how little this is. The function is defined over an entire continuous range, and the algorithm is about to make a decision based on <b>two points</b>. It has no idea what lies three steps away, or on the far side of a dip, or anywhere else at all.",
+        "That narrowness is the whole story of this lab. Everything that goes wrong later goes wrong because of these two lines.",
+        "The <code>step</code> size is a real design choice, not a detail. Too small and the climb takes forever and gets caught by every tiny wrinkle. Too large and it strides over genuine peaks without noticing them."],
+     py:["Ordinary arithmetic on floats. Nothing special &mdash; but note these are <i>new</i> variables, not modifications of <code>x</code>. <code>x</code> is untouched until the very last step."],
+     vars:"x &nbsp;&middot;&nbsp; left &nbsp;&middot;&nbsp; right"},
+
+    {h:"Pick the better of the two neighbours",
+     p:["<code>best = left if g(left) > g(right) else right</code> is a <b>conditional expression</b>. It reads almost like English: take <code>left</code> if it scores higher, otherwise take <code>right</code>.",
+        "This is <b>steepest ascent</b> hill climbing &mdash; always move to the best available neighbour. A variant called <i>first-choice</i> hill climbing takes the first neighbour that is any improvement, which is faster when there are many neighbours to evaluate.",
+        "Note carefully what this line does <b>not</b> decide. It picks the better of the two neighbours, but says nothing about whether that neighbour beats the current position. That question is asked on the next line, and keeping the two separate is what makes the stopping rule clear."],
+     py:["<b>Conditional expression:</b> <code>a if cond else b</code>. Unlike an <code>if</code> statement it is an <i>expression</i>, so it produces a value and can sit on the right of an assignment.",
+        "The equivalent four-line version is <code>if g(left) &gt; g(right): best = left</code> / <code>else: best = right</code>. Both are fine; the one-liner is idiomatic Python."],
+     vars:"best &nbsp;&mdash; the better neighbour, not necessarily better than x"},
+
+    {h:"The stopping test &mdash; and what it really means",
+     p:["<code>if g(best) &lt;= g(x): return x, g(x)</code>",
+        "Read it as: if even the better neighbour is no improvement on where I already stand, then both neighbours are lower than me, so I am on a peak. Stop.",
+        "The <code>&lt;=</code> rather than <code>&lt;</code> matters. With a strict <code>&lt;</code>, a perfectly flat region &mdash; where a neighbour scores exactly the same &mdash; would let the algorithm shuffle sideways forever without improving. Using <code>&lt;=</code> treats \"no better\" as \"stop\".",
+        "Now the crucial point, and the one this whole lab exists to teach. The test asks only about the two immediate neighbours. It <b>cannot distinguish</b> a small local bump from the tallest peak on the curve, because from on top of either one, both neighbours are lower. The algorithm has no way to tell the difference, so it stops on whichever it happens to be standing on."],
+     py:["<code>return x, g(x)</code> returns a tuple of two values &mdash; the position and its score.",
+        "<code>g(x)</code> is called again here. On a costly objective you would store the value in a variable rather than recompute it."],
+     warn:"This is not a bug and there is nothing to fix in this line. The stopping rule is correct. The limitation is that it can only see two points, and no amount of care in writing this test can change that.",
+     vars:"unchanged &mdash; this step only reads and may return"},
+
+    {h:"Climb, and forget where you came from",
+     p:["<code>x = best</code> moves to the higher neighbour, and the loop starts again from there.",
+        "Notice what is <b>not</b> recorded. The previous position is overwritten and gone. There is no list of visited points, no history, no best-so-far kept aside.",
+        "The consequence is worth stating plainly: hill climbing cannot go back. It has no record of anywhere it has been, so it cannot retreat from a bad region or resume an abandoned route. Every previous lab could &mdash; the queue always held alternatives to fall back on. Here there are none, and this single assignment is why."],
+     py:["<code>x = best</code> rebinds the name. The old float is discarded and garbage-collected."],
+     vars:"x &nbsp;&mdash; now the new position; the old one no longer exists anywhere"},
+
+    {h:"Run it twice, and read the two answers carefully",
+     p:["Two calls, differing only in where they start.",
+        "<b>From x = 0.5</b> it climbs to about <code>x = 0.75</code>, scoring <code>0.941</code>. That is close to the best available anywhere on the curve.",
+        "<b>From x = 4.0</b> it climbs to about <code>x = 4.75</code>, scoring <code>&minus;0.668</code>. That is a peak &mdash; both neighbours really are lower &mdash; but it is a small bump, and the global maximum is 1.6 higher.",
+        "Both runs are <b>correct</b>. Neither has a bug. In each case the algorithm did exactly what it was told: climb while a neighbour is higher, then stop. The second run simply started on the wrong hill, and hill climbing has no mechanism for ever leaving one hill and trying another.",
+        "So: the answer depends entirely on the starting point, which the algorithm does not choose and cannot evaluate. Lab 7 fixes this by allowing downhill moves."],
+     py:["Each <code>print</code> shows a tuple, because the function returns two values."],
+     vars:"two independent runs; nothing is shared between them"}
+  ],
+  run(){
+    const F=[], out=[];
+    const g=x=>Math.sin(x)+Math.sin(3*x)/3;
+    const r3=v=>Math.round(v*1000)/1000;
+    function climb(start,step,label){
+      let x=start, guard=0;
+      F.push({tag:"def",x:x,out:out.slice(),chips:[],
+        note:`<b>Run from x = ${start}.</b> The only variable is <code>x</code>. No queue, no history.`});
+      while(guard++<40){
+        F.push({tag:"loop",x:x,out:out.slice(),chips:[],
+          note:`<code>while True</code> &mdash; go round again from x = <b>${r3(x)}</b>, g = <b>${r3(g(x))}</b>.`});
+        const L=x-step, R=x+step;
+        F.push({tag:"look",x:x,L:L,R:R,out:out.slice(),
+          chips:[`left ${r3(L)} &rarr; ${r3(g(L))}`,`right ${r3(R)} &rarr; ${r3(g(R))}`],
+          note:`Look one step each way. <b>Only these two points</b> are visible to the algorithm.`});
+        const best = g(L)>g(R) ? L : R;
+        F.push({tag:"pick",x:x,L:L,R:R,best:best,out:out.slice(),
+          chips:[`left ${r3(L)} &rarr; ${r3(g(L))}`,`right ${r3(R)} &rarr; ${r3(g(R))}`],
+          note:`Better neighbour is <b>${best===L?"left":"right"}</b> at x = ${r3(best)}, g = ${r3(g(best))}.`});
+        if(g(best)<=g(x)){
+          out.push({t:`from x=${start} : (${r3(x)}, ${r3(g(x))})`,ok:true});
+          F.push({tag:"stop",x:x,L:L,R:R,best:best,out:out.slice(),peak:true,
+            chips:[`left ${r3(g(L))}`,`right ${r3(g(R))}`,`here ${r3(g(x))}`],
+            why: start>3
+              ? `<b>Stuck.</b> g(best) = ${r3(g(best))} is not better than g(x) = ${r3(g(x))}, so the algorithm stops &mdash; correctly, by its own rule. But this peak scores ${r3(g(x))} while the tallest peak on the curve scores <b>0.943</b>, over at x &asymp; 2.36. From up here both neighbours slope down, and two points is all the algorithm can see. It has no way even to suspect the better hill exists.`
+              : `Both neighbours are lower, so this is a peak and the loop returns. This run started on the tall hill and found a score of ${r3(g(x))}.`,
+            note:`<b>g(best) &le; g(x)</b> &mdash; no improvement available. Return x = ${r3(x)}, g = ${r3(g(x))}.`});
+          return;
+        }
+        F.push({tag:"stop",x:x,L:L,R:R,best:best,out:out.slice(),
+          chips:[`best ${r3(g(best))}`,`here ${r3(g(x))}`],
+          note:`g(best) = ${r3(g(best))} &gt; g(x) = ${r3(g(x))} &mdash; an improvement exists, so keep climbing.`});
+        x=best;
+        F.push({tag:"move",x:x,out:out.slice(),chips:[],
+          note:`<code>x = best</code>. Moved to <b>${r3(x)}</b>. The previous position is now gone &mdash; nothing recorded it.`});
+      }
+    }
+    climb(0.5,0.25,"A");
+    climb(4.0,0.25,"B");
+    F.push({tag:"call",x:4.75,out:out.slice(),chips:[],done:true,
+      why:`Same program, same function, same step size &mdash; and answers of <b>0.941</b> and <b>&minus;0.668</b>. Neither run is buggy. The result is decided entirely by the starting point, which the algorithm neither chooses nor can evaluate.`,
+      note:`Both runs finished. Compare the two peaks marked on the curve.`});
+    return F;
+  }
+});
+
+/* =========================================================================
+   LAB 7 — SIMULATED ANNEALING
+   ========================================================================= */
+LABS.push({
+  id:"anneal", tab:"Simulated annealing", num:"08",
+  title:"Simulated Annealing",
+  question:`
+    <h2>The question</h2>
+    <div class="title">Lab 7 &middot; Simulated annealing</div>
+    <p><b>Same function as Lab 6:</b> <code>g(x) = sin(x) + sin(3x)/3</code> over 0 to 6.</p>
+    <p>Hill climbing starting at <code>x = 4.0</code> got stuck on a small bump at <code>x = 4.75</code>, scoring <code>&minus;0.668</code>. Start this program at that <b>exact same stuck point</b> and reach the global maximum at <code>x &asymp; 2.356</code>, scoring <code>0.943</code>.</p>
+    <p><b>Write a program that</b> picks a <b>random</b> neighbour rather than looking both ways, accepts it outright if it is better, and &mdash; here is the whole idea &mdash; accepts it <b>even when it is worse</b>, with probability</p>
+    <p style="font-family:var(--mono);font-size:16px;margin:10px 0"><b>P = exp(&Delta;E / T)</b></p>
+    <p>where <code>&Delta;E</code> is the change in score (negative for a worse move) and <code>T</code> is a <b>temperature</b> that starts high and is multiplied by a cooling factor each round.</p>
+    <p><b>Answer this:</b> accepting worse moves sounds like sabotage. Explain, using the numbers in your own trace, why it is the only thing that could have escaped the bump &mdash; and why the temperature must go down rather than stay high.</p>`,
+  qLabel:"temperature, current score, candidate score",
+  viz:"curve",
+  code:[
+    {s:0,t:"# LAB 7: Simulated Annealing"},
+    {s:0,t:"import math, random"},
+    {s:0,t:""},
+    {s:1,t:"def g(x):", tag:"obj"},
+    {s:1,t:"    return math.sin(x) + math.sin(3*x)/3"},
+    {s:1,t:""},
+    {s:2,t:"def simulated_annealing(start, T=1.5, cool=0.82, T_min=0.03):", tag:"def"},
+    {s:2,t:"    random.seed(2)            # fixed seed: same run every time"},
+    {s:2,t:"    x = start"},
+    {s:2,t:""},
+    {s:3,t:"    while T > T_min:          # cool down, then stop", tag:"loop"},
+    {s:4,t:"        candidate = x + random.uniform(-1, 1)   # a RANDOM neighbour", tag:"cand"},
+    {s:4,t:"        candidate = max(0.0, min(6.0, candidate))   # stay in range"},
+    {s:4,t:""},
+    {s:5,t:"        dE = g(candidate) - g(x)      # positive = better, negative = worse", tag:"delta"},
+    {s:5,t:""},
+    {s:6,t:"        if dE > 0:", tag:"better"},
+    {s:6,t:"            accept = True             # always take an improvement"},
+    {s:7,t:"        else:", tag:"worse"},
+    {s:7,t:"            P = math.exp(dE / T)      # <-- THE WHOLE IDEA"},
+    {s:7,t:"            accept = random.random() < P"},
+    {s:7,t:""},
+    {s:8,t:"        if accept:", tag:"move"},
+    {s:8,t:"            x = candidate"},
+    {s:8,t:""},
+    {s:9,t:"        T = T * cool                  # cool down a little", tag:"cool"},
+    {s:9,t:""},
+    {s:10,t:"    return x, g(x)"},
+    {s:10,t:""},
+    {s:11,t:'print("SA from x=4.75 :", simulated_annealing(4.75))', tag:"call"}
+  ],
+  tagInfo:{
+    obj:{t:"Evaluating g(x)",
+      d:["Exactly the same objective function as Lab 6. The problem has not changed at all &mdash; only the search strategy has."]},
+    def:{t:"Setting up",
+      d:["<code>x = start</code>, plus a temperature <code>T</code>. Still almost no memory: one position and one number that decreases.",
+         "<code>random.seed(2)</code> fixes the random sequence so the run is identical every time. Without it you would get a different answer on every execution, which makes debugging impossible."]},
+    loop:{t:"while T > T_min:",
+      d:["The loop is controlled by the <b>temperature</b>, not by whether progress is being made.",
+         "Compare Lab 6, which stopped the moment no neighbour was better. This one keeps going even when standing on a peak, because at high temperature it might still leave &mdash; and that is the point."]},
+    cand:{t:"candidate = x + random.uniform(-1, 1)",
+      d:["A <b>random</b> neighbour, somewhere within one unit either side. Hill climbing looked in both directions and compared; this looks in one random direction and does not compare.",
+         "The jump can be much larger than hill climbing's fixed 0.25 step, which is part of how it crosses valleys."]},
+    delta:{t:"dE = g(candidate) - g(x)",
+      d:["The change in score. <b>Positive</b> means the candidate is better; <b>negative</b> means worse.",
+         "Everything that follows branches on this one sign."]},
+    better:{t:"dE > 0  &rarr;  accept unconditionally",
+      d:["An improvement is always taken. In this branch simulated annealing behaves exactly like hill climbing.",
+         "It is the <code>else</code> branch that makes the two algorithms different."]},
+    worse:{t:"P = exp(dE / T)  &nbsp;&mdash;  the whole idea",
+      d:["The candidate is <b>worse</b>, and the algorithm computes a probability of taking it anyway.",
+         "Because <code>dE</code> is negative, <code>exp(dE/T)</code> lands between 0 and 1. Two things push it up: a small drop, or a high temperature. Then <code>random.random() &lt; P</code> rolls the dice."]},
+    move:{t:"if accept: x = candidate",
+      d:["Move to the candidate &mdash; whether it was an improvement or a deliberately accepted setback."]},
+    cool:{t:"T = T * cool",
+      d:["The temperature drops by 18% each round. As <code>T</code> shrinks, <code>exp(dE/T)</code> collapses toward zero and worse moves stop being accepted.",
+         "Early on the search wanders freely. Late on it behaves like hill climbing. The cooling schedule is what hands the search from one mode to the other."]},
+    call:{t:"The result",
+      d:["Started at x = 4.75 &mdash; the exact point where hill climbing gave up scoring &minus;0.668 &mdash; and finished at the global maximum, 0.943."]}
+  },
+  steps:[
+    {h:"Import math and random, and restate the problem",
+     p:["The function is identical to Lab 6. The curve on the right is the same curve. Nothing about the problem has changed.",
+        "What changes is the strategy, and it changes in exactly one place: the willingness to move <b>downhill</b>.",
+        "<code>random</code> is imported alongside <code>math</code>. Randomness is not a convenience here &mdash; it is a load-bearing part of the algorithm, and the program cannot work without it."],
+     py:["<code>import math, random</code> imports two modules on one line. Both ship with Python."],
+     vars:"none yet"},
+
+    {h:"Define the same objective function",
+     p:["Character for character the same as Lab 6. Copy it across unchanged.",
+        "Holding this constant is the point. When two programs produce &minus;0.668 and 0.943 on an identical function from an identical starting point, the difference has to be the algorithm."],
+     py:["No new syntax."],
+     vars:"g(x)"},
+
+    {h:"Declare the function, its four parameters, and fix the seed",
+     p:["<code>def simulated_annealing(start, T=1.5, cool=0.82, T_min=0.03):</code>",
+        "<code>T</code> is the starting <b>temperature</b>. High temperature means the search is willing to accept bad moves. It is called temperature by analogy with metallurgy: heat a metal and its atoms move freely; cool it slowly and they settle into a low-energy crystal. Cool it too fast and it locks into a flawed structure &mdash; which is precisely what hill climbing does.",
+        "<code>cool</code> is the multiplier applied each round. 0.82 means the temperature drops 18% per iteration.",
+        "<code>T_min</code> is when to stop.",
+        "<code>random.seed(2)</code> makes the random sequence reproducible. Without it, every run gives a different answer and you can never tell whether a change you made helped or whether you just got a different roll. Fix the seed while developing; remove it when you want genuinely varied runs."],
+     py:["<code>random.seed(n)</code> sets the generator's starting state. The same seed always yields the same sequence of numbers.",
+        "Four parameters, three with defaults, so <code>simulated_annealing(4.75)</code> is a valid call."],
+     vars:"x = start &nbsp;&middot;&nbsp; T = 1.5"},
+
+    {h:"Loop on temperature, not on progress",
+     p:["<code>while T &gt; T_min:</code>",
+        "This is a real departure from Lab 6. Hill climbing's loop ended the instant no neighbour was better &mdash; the moment it reached any peak, it was done.",
+        "Simulated annealing keeps going regardless. Standing on a peak is not a reason to stop, because at a high enough temperature the algorithm may still choose to walk off it. The loop ends when the schedule says the search is over, not when progress stalls.",
+        "Because <code>T</code> is multiplied by a number below 1 every round, it decreases geometrically and the loop is guaranteed to terminate."],
+     py:["Multiplying repeatedly by 0.82 gives 1.5, 1.23, 1.01, 0.83, ... Starting at 1.5 with a floor of 0.03, that is 20 iterations."],
+     vars:"T shrinks every round"},
+
+    {h:"Pick ONE random neighbour",
+     p:["<code>candidate = x + random.uniform(-1, 1)</code> takes a random step somewhere within one unit either side.",
+        "Two differences from hill climbing, both important.",
+        "First, <b>one neighbour instead of two</b>. Hill climbing examined left and right and compared them. This picks a single direction at random and does not compare anything. On a real problem where each evaluation is expensive, examining one candidate instead of all of them is a large saving.",
+        "Second, <b>the jump is bigger and variable</b>. Hill climbing was locked to steps of exactly 0.25. Here the move can be anything up to 1.0, which lets the search cross a valley in one go rather than having to crawl down and up the other side.",
+        "The <code>max(0.0, min(6.0, ...))</code> line clamps the result into the allowed range &mdash; a plain way of saying \"do not wander outside the domain\"."],
+     py:["<code>random.uniform(a, b)</code> returns a float anywhere between <code>a</code> and <code>b</code>, all values equally likely.",
+        "<code>max(0.0, min(6.0, v))</code> is the standard clamp idiom: <code>min</code> caps the top, <code>max</code> lifts the bottom."],
+     vars:"candidate &nbsp;&mdash; one random neighbour"},
+
+    {h:"Measure the change with dE",
+     p:["<code>dE = g(candidate) - g(x)</code>. The name comes from physics: a change in energy.",
+        "The <b>sign</b> is what matters, and everything below branches on it. <b>Positive</b> means the candidate scores higher &mdash; an improvement. <b>Negative</b> means it scores lower &mdash; a worse move.",
+        "Keep the ordering straight: candidate minus current. Reverse it and every decision in the program inverts, and the search will reliably find the lowest point on the curve."],
+     py:["Subtracting two function calls. Both are evaluated first, then the difference is stored."],
+     vars:"dE &nbsp;&mdash; positive = better, negative = worse"},
+
+    {h:"If it is better, always take it",
+     p:["<code>if dE &gt; 0: accept = True</code>",
+        "No probability, no dice roll. An improvement is taken unconditionally.",
+        "In this branch simulated annealing is doing exactly what hill climbing does. If you deleted the <code>else</code> that follows, you would be left with a randomised hill climber &mdash; and it would get stuck on the same bump for the same reason.",
+        "Everything that makes this algorithm different lives in the <code>else</code>."],
+     py:["<code>accept</code> is a boolean flag. Setting a flag in a branch and acting on it later keeps the decision logic separate from the movement logic."],
+     vars:"accept = True"},
+
+    {h:"If it is worse, roll the dice &mdash; this is the whole algorithm",
+     p:["Two lines, and they are why this lab exists.",
+        "<code>P = math.exp(dE / T)</code>. Because <code>dE</code> is negative here, <code>dE/T</code> is negative, and <code>exp</code> of a negative number lands strictly between 0 and 1. So <code>P</code> is a valid probability.",
+        "Two things make <code>P</code> large. A <b>small drop</b>: <code>dE = &minus;0.05</code> is a minor setback and is usually accepted. A <b>high temperature</b>: dividing by a large <code>T</code> pulls the exponent toward 0, pushing <code>P</code> toward 1.",
+        "Work two numbers from the actual trace. Early on, <code>dE = &minus;0.18</code> with <code>T = 1.5</code> gives <code>P = exp(&minus;0.12) = 0.887</code> &mdash; an 89% chance of accepting a worse position. Late on, <code>dE = &minus;0.32</code> with <code>T = 0.076</code> gives <code>P = exp(&minus;4.2) = 0.015</code> &mdash; a 1.5% chance.",
+        "<b>The identical size of setback goes from near-certain to near-impossible purely because the temperature dropped.</b> That is the mechanism, and it is worth being able to state in one sentence.",
+        "<code>random.random() &lt; P</code> then rolls a number in [0,1) and compares. If <code>P = 0.887</code>, roughly 89% of rolls fall below it."],
+     py:["<code>math.exp(y)</code> is <i>e</i> raised to the power <code>y</code>. For negative <code>y</code> the result is between 0 and 1.",
+        "<code>random.random()</code> returns a float in [0.0, 1.0). Comparing it against a probability is the standard way to make a weighted coin flip."],
+     warn:"Write <code>math.exp(-dE / T)</code> by mistake and the sign flips: bad moves become <i>more</i> likely as it cools, and the search runs backwards. The minus sign appears in the physics literature because &Delta;E is defined there as energy to be minimised. Here we are maximising, so no extra minus is needed.",
+     vars:"P &nbsp;&middot;&nbsp; accept &nbsp;(now decided by a dice roll)"},
+
+    {h:"Move if accepted",
+     p:["<code>if accept: x = candidate</code>",
+        "One line handling both branches. It does not matter whether the move was an improvement or a deliberately accepted setback &mdash; if the flag is set, the search moves.",
+        "If the flag is not set, <code>x</code> stays put and the round is spent without moving. That is normal, and it becomes the common case late in the run once the temperature is low."],
+     py:["A single-statement <code>if</code> can go on one line. Some style guides prefer two lines; both are valid Python."],
+     vars:"x &nbsp;&mdash; may or may not have changed"},
+
+    {h:"Cool down",
+     p:["<code>T = T * cool</code> multiplies the temperature by 0.82, dropping it 18%.",
+        "This one line is what turns the search from an explorer into an optimiser, and it does so gradually.",
+        "<b>Early</b>, with <code>T &asymp; 1.5</code>, worse moves are accepted freely and the search roams across the whole curve without much regard for score. <b>Late</b>, with <code>T &asymp; 0.03</code>, <code>exp(dE/T)</code> is effectively zero for any real setback and the search only climbs &mdash; it has become hill climbing.",
+        "Both extremes are useless on their own. Stay hot forever and it is a random walk that never settles. Start cold and it is hill climbing that gets stuck on the first bump, exactly as in Lab 6. <b>The value is entirely in the transition</b>, and the cooling rate controls it: cool too fast and it freezes onto a bad peak; cool too slowly and it wastes thousands of iterations wandering."],
+     py:["<code>T = T * cool</code> can also be written <code>T *= cool</code>."],
+     vars:"T &nbsp;&mdash; 18% lower than last round"},
+
+    {h:"Return the final position",
+     p:["<code>return x, g(x)</code> once the temperature has dropped below <code>T_min</code>.",
+        "There is an honest weakness here worth naming. The algorithm returns <b>where it happens to end up</b>, not the best point it ever visited. If it accepted a downhill move on the very last iteration, it returns that worse position.",
+        "A production implementation keeps a separate <code>best_x, best_score</code> pair updated whenever a new high is reached, and returns that instead. It is three extra lines and it is the first exercise for this lab."],
+     py:["Returning a tuple of position and score, same as Lab 6, so the two are directly comparable."],
+     vars:"function complete"},
+
+    {h:"Run it from the exact point hill climbing failed",
+     p:["<code>simulated_annealing(4.75)</code> &mdash; the precise position where Lab 6 gave up.",
+        "The result is <code>x = 2.355</code>, <code>g = 0.943</code>: the global maximum.",
+        "Now step through the run and watch three things.",
+        "<b>Iteration 1</b> immediately accepts a <i>worse</i> position (dE = &minus;0.18, P = 0.887). Within one move it has already left the bump that trapped hill climbing permanently.",
+        "<b>Iteration 8</b> accepts a substantial drop (dE = &minus;0.706, P = 0.152) on a roll of 0.107. A 15% chance that happened to come off &mdash; and it is what carries the search across to the region containing the tall peak.",
+        "<b>Iterations 16 to 19</b> reject four worse moves in a row, with probabilities of 0.015, 0.030, 0.006 and 0.002. The temperature is now low and the algorithm has stopped wandering. It is hill climbing again, and it settles onto the peak.",
+        "That progression &mdash; escape, cross, settle &mdash; is the whole algorithm, and it is visible in the numbers rather than only in the description."],
+     py:["The printed result is a tuple, matching Lab 6's output format for easy comparison."],
+     vars:"x = 2.355 &nbsp;&middot;&nbsp; g = 0.943 &nbsp;(hill climbing: &minus;0.668)"}
+  ],
+  run(){
+    const F=[], out=[];
+    const g=x=>Math.sin(x)+Math.sin(3*x)/3;
+    const r3=v=>Math.round(v*1000)/1000;
+    // LCG identical to the verified Python reference
+    let seed=2;
+    const rnd=()=>{ seed=(seed*1664525+1013904223)%4294967296; return seed/4294967296; };
+    let x=4.75, T=1.5;
+    const cool=0.82, Tmin=0.03;
+    F.push({tag:"def",x:x,T:T,out:out.slice(),chips:[],
+      note:`<b>Start at x = 4.75</b> &mdash; the exact point hill climbing got stuck, scoring ${r3(g(x))}. Temperature T = 1.5.`});
+    let it=0;
+    while(T>Tmin && it<40){
+      it++;
+      F.push({tag:"loop",x:x,T:T,out:out.slice(),chips:[`T = ${r3(T)}`,`x = ${r3(x)}`,`g(x) = ${r3(g(x))}`],
+        note:`<b>Iteration ${it}.</b> T = ${r3(T)} is still above T_min, so continue.`});
+      let c = x + (rnd()*2-1)*1.0;
+      c = Math.max(0, Math.min(6, c));
+      F.push({tag:"cand",x:x,T:T,cand:c,out:out.slice(),
+        chips:[`T = ${r3(T)}`,`candidate x = ${r3(c)}`],
+        note:`Random neighbour: <b>${r3(c)}</b>. One direction only &mdash; nothing was compared.`});
+      const dE = g(c)-g(x);
+      F.push({tag:"delta",x:x,T:T,cand:c,out:out.slice(),
+        chips:[`g(x) = ${r3(g(x))}`,`g(cand) = ${r3(g(c))}`,`dE = ${r3(dE)}`],
+        note:`dE = ${r3(g(c))} &minus; ${r3(g(x))} = <b>${r3(dE)}</b> &mdash; ${dE>0?"an improvement":"<b>worse</b>"}.`});
+      let accept, P=1, roll=null;
+      if(dE>0){
+        accept=true;
+        F.push({tag:"better",x:x,T:T,cand:c,out:out.slice(),
+          chips:[`dE = ${r3(dE)} > 0`,`accept unconditionally`],
+          note:`dE is positive, so take it with no dice roll. Here SA behaves exactly like hill climbing.`});
+      } else {
+        P=Math.exp(dE/T); roll=rnd(); accept=roll<P;
+        F.push({tag:"worse",x:x,T:T,cand:c,out:out.slice(),
+          chips:[`P = exp(${r3(dE)}/${r3(T)}) = ${r3(P)}`,`roll = ${r3(roll)}`,accept?"ACCEPT":"reject"],
+          why: (it===1)
+            ? `<b>The escape, on the very first move.</b> This candidate is <i>worse</i> (dE = ${r3(dE)}), and the algorithm takes it anyway: P = ${r3(P)} at T = ${r3(T)}, roll = ${r3(roll)}. Hill climbing could never do this &mdash; it would have returned x = 4.75 and stopped. One deliberately bad move is all it took to leave the bump.`
+            : (P<0.2 && !accept)
+            ? `<b>Cooling is now visible.</b> P = ${r3(P)} &mdash; only a ${Math.round(P*100)}% chance. At iteration 1 a setback like this would have been accepted almost certainly. Same algorithm, same formula; only T has fallen. The search has stopped wandering and is settling.`
+            : (P<0.25 && accept)
+            ? `<b>An unlikely move that paid off.</b> A drop of ${r3(dE)} with only a ${Math.round(P*100)}% chance &mdash; and the roll of ${r3(roll)} came in under it. This is the jump that carries the search across the valley toward the tall peak.`
+            : undefined,
+          note:`Worse move. P = exp(${r3(dE)} / ${r3(T)}) = <b>${r3(P)}</b>. Rolled ${r3(roll)} &rarr; <b>${accept?"accept":"reject"}</b>.`});
+      }
+      if(accept) x=c;
+      F.push({tag:"move",x:x,T:T,out:out.slice(),
+        chips:[`x = ${r3(x)}`,`g(x) = ${r3(g(x))}`],
+        note: accept ? `Accepted &mdash; moved to x = <b>${r3(x)}</b>.` : `Rejected &mdash; x stays at <b>${r3(x)}</b>.`});
+      T*=cool;
+      F.push({tag:"cool",x:x,T:T,out:out.slice(),
+        chips:[`T = ${r3(T)}`],
+        note:`Cool: T &times; 0.82 = <b>${r3(T)}</b>. Worse moves just became a little harder to accept.`});
+    }
+    out.push({t:`SA from x=4.75 : (${r3(x)}, ${r3(g(x))})`,ok:true});
+    out.push({t:`hill climbing from x=4.0 gave : (4.75, -0.668)`,ok:false});
+    F.push({tag:"call",x:x,T:T,out:out.slice(),done:true,
+      why:`Started on the bump that trapped hill climbing and finished at <b>x = ${r3(x)}, g = ${r3(g(x))}</b> &mdash; the global maximum. Same function, same starting point, same objective. The only difference is that this program was allowed to move downhill while it was hot.`,
+      note:`<b>T dropped below T_min.</b> Final answer: x = ${r3(x)}, g = ${r3(g(x))}.`});
+    return F;
+  }
 });
 
 /* =========================================================================
@@ -925,6 +1756,9 @@ function weightedFrames(){
     }
     const hasGoalWaiting = q.some(e=>e[1][e[1].length-1]==='D');
     F.push({tag:"goal",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:cost,
+      why: hasGoalWaiting
+        ? `This is the frame the whole lab exists for. A <b>finished path to D costing 6</b> is in the queue right now. Had you written the goal test at generation time, the program would have returned 6 here and stopped. Because the test only fires on <b>pop</b>, that entry waits &mdash; and is beaten two rounds later by a route costing 4.`
+        : undefined,
       note: hasGoalWaiting
         ? `Not the goal. <b>A finished path to D is sitting in the queue right now</b> &mdash; and UCS refuses it, because something cheaper is still waiting.`
         : `Not the goal. Expand it.`});
@@ -968,12 +1802,21 @@ function heurFrames(kind){
                   : `<b>Goal reached &mdash; real cost ${real}.</b> The 5-cost route through B is still sitting in the queue, never expanded.`});
       break;
     }
+    const goalWaiting = q.some(e=>pathOf(e)[pathOf(e).length-1]==='G');
     F.push({tag:"goal",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:g,
+      why: (isA && goalWaiting)
+        ? `The frame students report as a bug. A <b>completed path to G</b> is already in the queue, and A* is expanding ${node} instead. That is correct: f(${node}) is lower, and because <code>h</code> never overestimates, that f is a genuine <b>lower bound</b> on what a route through ${node} could cost. It might still win, so A* is obliged to check. It checks, finds the road costs 10, and drops the branch.`
+        : undefined,
       note:`${node} is not the goal. Expand it.`});
     for(const [n,w] of HG[node]){
       if(isA) q.push([g+w+HH[n], g+w, path.concat([n])]);
       else    q.push([HH[n], path.concat([n])]);
       F.push({tag:"expand",q:q.map(lab),visited:[],out:out.slice(),cur:node,curPath:path.slice(),cost:g,
+        why: (!isA && node==='S')
+          ? `The variable <code>w</code> currently holds <b>${w}</b> &mdash; the real cost of this road &mdash; and the line being executed does not use it. Greedy is queuing this route on <code>h=${HH[n]}</code> alone. In Lab 5 the identical line becomes <code>g + w + h[n]</code> and the same graph returns 5 instead of 12.`
+          : (isA && node==='A')
+          ? `Here is the payoff. Greedy discarded <code>w</code> at this exact point. A* uses it twice: <code>g + w = ${g+w}</code> is the real cost, and <code>g + w + h = ${g+w+HH[n]}</code> is the estimated total. That f-value of ${g+w+HH[n]} is what will push this branch to the back of the queue and save the answer.`
+          : undefined,
         note: isA ? `Add <b>f=${g+w+HH[n]}, g=${g+w}</b> for ${path.concat([n]).join("")} &nbsp;(${g} + ${w} + ${HH[n]}).`
                   : `Add <b>h=${HH[n]}</b> for ${path.concat([n]).join("")}. <b>The edge cost ${w} is discarded.</b>`});
     }
@@ -1026,13 +1869,17 @@ function renderExplain(){
   const e=$("explain");
   if(mode==="build"){
     const s=lab.steps[idx];
-    e.innerHTML = `<div class="step">Step ${idx+1} of ${lab.steps.length}</div>
+    e.innerHTML = `<div class="step">Step ${idx+1} of ${lab.steps.length} &mdash; writing the code</div>
       <h4>${s.h}</h4>${s.p.map(x=>`<p>${x}</p>`).join("")}
-      ${s.warn?`<p class="warn">${s.warn}</p>`:""}`;
+      ${s.py?`<div class="pybox"><b>Python syntax used here</b>${s.py.map(x=>`<p>${x}</p>`).join("")}</div>`:""}
+      ${s.warn?`<p class="warn">${s.warn}</p>`:""}
+      ${s.vars?`<div class="varbox"><b>Variables that exist after this step</b><p>${s.vars}</p></div>`:""}`;
   } else {
-    e.innerHTML = `<div class="step">Executing &mdash; frame ${idx+1} of ${frames.length}</div>
-      <h4>The highlighted line is running now</h4>
-      <p>Follow the blue marker in the code, the coloured nodes in the diagram, and the queue chips below. They are all showing the same instant.</p>`;
+    const f=frames[idx];
+    const info = (lab.tagInfo && lab.tagInfo[f.tag]) || {t:"Running",d:["The highlighted line is executing."]};
+    e.innerHTML = `<div class="step">Frame ${idx+1} of ${frames.length} &mdash; running the code</div>
+      <h4>${info.t}</h4>${info.d.map(x=>`<p>${x}</p>`).join("")}
+      ${f.why?`<p class="warn">${f.why}</p>`:""}`;
   }
 }
 
@@ -1071,6 +1918,68 @@ function renderGraph(){
   $("viz").innerHTML=s;
 }
 
+function renderCurve(){
+  const f = mode==="run" ? frames[idx] : null;
+  const W=760,H=330, PL=52,PR=20,PT=22,PB=44;
+  const LO=0,HI=6, YMIN=-1.05,YMAX=1.05;
+  const sx=v=>PL+(v-LO)/(HI-LO)*(W-PL-PR);
+  const sy=v=>PT+(YMAX-v)/(YMAX-YMIN)*(H-PT-PB);
+  const g=x=>Math.sin(x)+Math.sin(3*x)/3;
+  let d="";
+  for(let i=0;i<=300;i++){ const x=LO+(HI-LO)*i/300; d+=(i?" L":"M")+sx(x).toFixed(1)+","+sy(g(x)).toFixed(1); }
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="objective function g(x)">`;
+  // axes
+  s+=`<line x1="${PL}" y1="${sy(0)}" x2="${W-PR}" y2="${sy(0)}" stroke="var(--rule)" stroke-width="1"/>`;
+  s+=`<line x1="${PL}" y1="${PT}" x2="${PL}" y2="${H-PB}" stroke="var(--rule)" stroke-width="1"/>`;
+  for(let t=0;t<=6;t++){
+    s+=`<line x1="${sx(t)}" y1="${H-PB}" x2="${sx(t)}" y2="${H-PB+5}" stroke="var(--rule)"/>`;
+    s+=`<text class="wlabel" x="${sx(t)}" y="${H-PB+19}" text-anchor="middle">${t}</text>`;
+  }
+  [-1,0,1].forEach(t=>{
+    s+=`<text class="wlabel" x="${PL-9}" y="${sy(t)+4}" text-anchor="end">${t}</text>`;
+  });
+  s+=`<text class="wlabel" x="${W-PR}" y="${H-8}" text-anchor="end">x</text>`;
+  // reference peaks
+  s+=`<line x1="${sx(2.356)}" y1="${sy(0.943)}" x2="${sx(2.356)}" y2="${H-PB}" stroke="var(--goal)" stroke-width="1" stroke-dasharray="3 4"/>`;
+  s+=`<text class="hlabel" x="${sx(2.356)}" y="${sy(0.943)-9}" text-anchor="middle" style="fill:var(--goal)">global max 0.943</text>`;
+  s+=`<line x1="${sx(4.75)}" y1="${sy(-0.668)}" x2="${sx(4.75)}" y2="${H-PB}" stroke="var(--dead)" stroke-width="1" stroke-dasharray="3 4"/>`;
+  s+=`<text class="hlabel" x="${sx(4.75)}" y="${sy(-0.668)-9}" text-anchor="middle" style="fill:var(--ink-soft)">local max &minus;0.668</text>`;
+  // curve
+  s+=`<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2.5"/>`;
+  if(f){
+    // neighbour probes (hill climbing)
+    ["L","R"].forEach(k=>{
+      if(f[k]===undefined) return;
+      const v=f[k]; if(v<LO||v>HI) return;
+      s+=`<line x1="${sx(v)}" y1="${sy(g(v))}" x2="${sx(v)}" y2="${H-PB}" stroke="var(--frontier)" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/>`;
+      s+=`<circle cx="${sx(v)}" cy="${sy(g(v))}" r="7" fill="#fff" stroke="var(--frontier)" stroke-width="3"/>`;
+      s+=`<text class="hlabel" x="${sx(v)}" y="${sy(g(v))+(g(v)>g(f.x)?-14:22)}" text-anchor="middle">${k==="L"?"left":"right"}</text>`;
+    });
+    // candidate (annealing)
+    if(f.cand!==undefined){
+      const c=f.cand;
+      s+=`<line x1="${sx(f.x)}" y1="${sy(g(f.x))}" x2="${sx(c)}" y2="${sy(g(c))}" stroke="var(--goal)" stroke-width="2" stroke-dasharray="5 4"/>`;
+      s+=`<circle cx="${sx(c)}" cy="${sy(g(c))}" r="9" fill="#fff" stroke="var(--goal)" stroke-width="3"/>`;
+      s+=`<text class="hlabel" x="${sx(c)}" y="${sy(g(c))-15}" text-anchor="middle" style="fill:var(--goal)">candidate</text>`;
+    }
+    // current position
+    if(f.x!==undefined){
+      if(f.peak) s+=`<circle class="pulse" cx="${sx(f.x)}" cy="${sy(g(f.x))}" r="20" fill="var(--current)"/>`;
+      s+=`<circle cx="${sx(f.x)}" cy="${sy(g(f.x))}" r="11" fill="var(--current)" stroke="#fff" stroke-width="3"/>`;
+      s+=`<text class="hlabel" x="${sx(f.x)}" y="${sy(g(f.x))+27}" text-anchor="middle" style="fill:var(--current)">x = ${(Math.round(f.x*100)/100)}</text>`;
+    }
+    // temperature gauge
+    if(f.T!==undefined){
+      const frac=Math.max(0,Math.min(1,f.T/1.5)), bw=150;
+      s+=`<text class="wlabel" x="${W-PR-bw}" y="${PT+4}">temperature T = ${Math.round(f.T*1000)/1000}</text>`;
+      s+=`<rect x="${W-PR-bw}" y="${PT+10}" width="${bw}" height="9" fill="var(--ground)" stroke="var(--rule)"/>`;
+      s+=`<rect x="${W-PR-bw}" y="${PT+10}" width="${(bw*frac).toFixed(1)}" height="9" fill="${frac>0.5?'var(--goal)':frac>0.2?'var(--current)':'var(--frontier)'}" style="transition:width .4s ease,fill .4s ease"/>`;
+    }
+  }
+  s+=`</svg>`;
+  $("viz").innerHTML=s;
+}
+
 function renderJugs(){
   const f = mode==="run" ? frames[idx] : null;
   const [x,y] = f && f.jugs ? f.jugs : [0,0];
@@ -1103,6 +2012,33 @@ function renderState(){
   $("qLabel").textContent = lab.qLabel;
   const qc=$("queue"), vc=$("visited");
   qc.innerHTML=""; vc.innerHTML="";
+  const secondLabel = document.querySelector('#visited').previousElementSibling;
+
+  if(lab.viz==="curve"){
+    const items = f ? (f.chips||[]) : [];
+    if(!items.length) qc.innerHTML='<span class="chip none">nothing being compared yet</span>';
+    else items.forEach((s,i)=>{
+      const c=document.createElement("span");
+      c.className="chip"+(/ACCEPT|accept unconditionally/.test(s)?" v":/reject/.test(s)?" none":"");
+      c.innerHTML=s; c.style.animationDelay=(i*45)+"ms"; qc.appendChild(c);
+    });
+    secondLabel.textContent = "what the algorithm remembers";
+    const g=x=>Math.sin(x)+Math.sin(3*x)/3;
+    if(!f){ vc.innerHTML='<span class="chip none">nothing yet</span>'; }
+    else{
+      const mem=[`x = ${Math.round(f.x*1000)/1000}`,`g(x) = ${Math.round(g(f.x)*1000)/1000}`];
+      if(f.T!==undefined) mem.push(`T = ${Math.round(f.T*1000)/1000}`);
+      mem.push("no queue &nbsp;&middot;&nbsp; no history");
+      mem.forEach((s,i)=>{
+        const c=document.createElement("span");
+        c.className="chip"+(i<mem.length-1?" v":" none");
+        c.innerHTML=s; c.style.animationDelay=(i*45)+"ms"; vc.appendChild(c);
+      });
+    }
+    $("note").innerHTML = f ? f.note : "Switch to <b>Run the code</b> to watch this program execute line by line.";
+    return;
+  }
+
   const items = f ? (lab.viz==="jug" ? f.frontier.map(s=>"("+s+")") : f.q) : [];
   if(!items || !items.length){
     qc.innerHTML='<span class="chip none">empty</span>';
@@ -1116,12 +2052,12 @@ function renderState(){
   }
   const vis = f ? (lab.viz==="jug" ? [] : (f.visited||[])) : [];
   if(lab.viz==="jug"){
-    document.querySelector('#visited').previousElementSibling.textContent="seen (every state ever found)";
+    secondLabel.textContent="seen (every state ever found)";
     const sv = f? f.seen : [];
     if(!sv.length) vc.innerHTML='<span class="chip none">empty</span>';
     else sv.forEach((s,i)=>{const c=document.createElement("span");c.className="chip v";c.textContent="("+s+")";c.style.animationDelay=(i*20)+"ms";vc.appendChild(c);});
   } else {
-    document.querySelector('#visited').previousElementSibling.textContent="visited";
+    secondLabel.textContent="visited";
     if(!vis.length) vc.innerHTML='<span class="chip none">empty</span>';
     else vis.forEach((s,i)=>{const c=document.createElement("span");c.className="chip v";c.textContent=s;c.style.animationDelay=(i*35)+"ms";vc.appendChild(c);});
   }
@@ -1140,8 +2076,16 @@ function renderConsole(){
   c.scrollTop=c.scrollHeight;
 }
 
+function renderLegend(){
+  const searchLeg=[["frontier","In queue"],["current","Expanding now"],["visited","Visited"],["goal","Goal"],["dead","Untouched"]];
+  const curveLeg=[["current","Current x"],["frontier","Neighbour probed"],["goal",lab.id==="anneal"?"Candidate move":"Global maximum"],["dead","Local maximum"]];
+  const L = lab.viz==="curve" ? curveLeg : searchLeg;
+  $("legend").innerHTML = L.map(([c,t])=>`<span><i class="dot" style="background:var(--${c})"></i>${t}</span>`).join("");
+}
+
 function render(){
   buildTabs();
+  renderLegend();
   $("question").innerHTML = lab.question;
   $("mBuild").setAttribute("aria-pressed", mode==="build");
   $("mRun").setAttribute("aria-pressed", mode==="run");
@@ -1150,7 +2094,7 @@ function render(){
     : "The same program, now executing. Watch the highlighted line.";
   if(mode==="run" && !frames.length) frames = lab.run();
   renderCode(); renderExplain();
-  if(lab.viz==="jug") renderJugs(); else renderGraph();
+  if(lab.viz==="jug") renderJugs(); else if(lab.viz==="curve") renderCurve(); else renderGraph();
   renderState(); renderConsole();
   const m=maxIdx();
   $("prev").disabled = idx<=0;
