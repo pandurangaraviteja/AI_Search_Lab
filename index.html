@@ -228,6 +228,7 @@ svg{display:block;width:100%;height:auto}
 .progress{flex:1;min-width:150px;height:5px;background:#333d57;position:relative}
 .progress i{position:absolute;left:0;top:0;bottom:0;background:var(--current);transition:width .3s ease}
 .counter{font-family:var(--mono);font-size:12px;color:#9aa8c2;min-width:74px;text-align:right}
+.math-guide{border-top:1px solid var(--rule);padding:12px 0;margin:12px 0}.math-guide h3{font-size:16px;margin:0 0 8px}.math-guide p{margin:8px 0}.math-guide .eqline{padding:8px;background:#f4f7fc;margin:5px 0}.walk-card{margin:9px 12px;padding:12px;border:1px solid var(--rule);background:#fbfcfe;font-size:13px;line-height:1.65}.walk-card>b{font-family:var(--mono);font-size:11px;letter-spacing:.045em;text-transform:uppercase}.walk-card .dim{color:var(--ink-soft)}.eqline{font-family:var(--mono);white-space:normal;overflow-wrap:anywhere;padding:5px 0;border-bottom:1px solid var(--ground);font-size:12px}.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px}.metric-grid span{background:var(--ground);padding:6px;font-family:var(--mono);font-size:11px}.metric-grid b{display:block;font-size:13px}.walk-card .qtable{width:100%;font-size:11px}.question .qtable{max-width:100%}@media(max-width:600px){.metric-grid{grid-template-columns:1fr}.walk-card{margin:8px 4px;padding:8px}.question{overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -551,6 +552,213 @@ LABS.push({
   }
 });
 
+
+/* ========================================================================
+   LAB 9: Expanded, beginner-friendly Hidden Markov Model
+   ======================================================================== */
+LABS.push({
+ id:'hmm',tab:'HMM · guided',num:'09',title:'HMM: Can an umbrella tell us if it rained?',viz:'prob',qLabel:'Current belief (Rain / Sun)',
+ question:`<h2>The story first</h2><div class="title">Lab 9 · Detective with an umbrella</div>
+ <p>Imagine you are inside a windowless classroom. You cannot see the weather. Your friend walks in carrying an umbrella. Can you confidently say it rained? <b>No.</b> People sometimes carry an umbrella on sunny days, and sometimes forget one when it rains. The weather is <b>hidden</b>; the umbrella is our <b>observation</b>.</p>
+ <p>We will maintain two guesses that add to 100%: Rain and Sun. Before seeing anything, assume a 60% chance of rain and 40% of sun. Every day, predict using yesterday's weather probabilities, then look at whether your friend has an umbrella and update the guesses.</p>
+ <table class="qtable"><tr><th>Hidden weather</th><th>Tomorrow Rain</th><th>Tomorrow Sun</th></tr><tr><td>Rain today</td><td>0.70</td><td>0.30</td></tr><tr><td>Sun today</td><td>0.40</td><td>0.60</td></tr></table>
+ <table class="qtable"><tr><th>Hidden weather</th><th>Umbrella (U)</th><th>No umbrella (N)</th></tr><tr><td>Rain</td><td>0.90</td><td>0.10</td></tr><tr><td>Sun</td><td>0.20</td><td>0.80</td></tr></table>
+ <p><b>Exam-style problem:</b> You observe <code>U, U, N</code> over three days. Find P(Rain) after each observation. On day 1, start directly from [0.60, 0.40]; the first transition happens before day 2.</p>
+ <p><b>Follow the story:</b> Prior guess → (on later days) tomorrow prediction → evidence score → divide by total → new belief. The animated bars are guesses, <i>not</i> observed weather.</p>
+ <div class="math-guide"><h3>Mathematical foundation, from zero</h3><p>Let Xₜ be the <b>hidden weather</b> on day t and Oₜ be the observed umbrella. Our question is P(Xₜ | O₁,…,Oₜ): what is today's weather belief after all clues so far?</p><p><b>Assumption 1 (Markov):</b> once we know today's weather, earlier weather does not add information about tomorrow: P(Xₜ | X₁,…,Xₜ₋₁) = P(Xₜ | Xₜ₋₁).</p><p><b>Assumption 2 (observation):</b> given today's weather, today's umbrella observation does not depend on other days: P(Oₜ | X₁,…,Xₜ,O₁,…,Oₜ₋₁) = P(Oₜ | Xₜ).</p><p><b>Prediction:</b> priorₜ(j) = Σᵢ posteriorₜ₋₁(i) × T(i,j). The Σ sign just means add the possible routes arriving at state j.</p><p><b>Correction using Bayes:</b> posteriorₜ(j) = [P(Oₜ | Xₜ=j) × priorₜ(j)] / Σₖ[P(Oₜ | Xₜ=k) × priorₜ(k)]. Top = score for one explanation; bottom = score of all explanations together.</p><div class="eqline">Day 1: Rain score = 0.60 × 0.90 = 0.54; Sun score = 0.40 × 0.20 = 0.08.</div><div class="eqline">P(U) = 0.54 + 0.08 = 0.62; P(Rain | U) = 0.54 / 0.62 ≈ 0.871.</div><p><b>What the answer does not say:</b> we have not directly measured rain, and this filtering calculation does not find the single most likely full sequence of weathers (the Viterbi problem).</p></div><p><b>Vocabulary:</b> Hidden state = actual weather. Emission = probability of umbrella given weather. Transition = probability of tomorrow's weather given today's. Filtering = what we believe now from observations so far. This lab calculates filtering, not the most likely entire sequence (Viterbi).</p>`,
+ code:[
+ {s:0,t:'# LAB 9: Weather detective — Hidden Markov Model'},
+ {s:0,t:'# U = umbrella, N = no umbrella; state order: Rain, Sun'},
+ {s:1,t:'states = ["Rain", "Sun"]'},
+ {s:1,t:'rain = 0.60                 # chance of Rain before day 1'},
+ {s:1,t:'sun = 0.40                  # chance of Sun before day 1'},
+ {s:2,t:'rain_to_rain = 0.70'}, {s:2,t:'sun_to_rain = 0.40'},
+ {s:2,t:'rain_to_sun = 0.30'}, {s:2,t:'sun_to_sun = 0.60'},
+ {s:3,t:'umbrella_if_rain = 0.90'}, {s:3,t:'umbrella_if_sun = 0.20'},
+ {s:3,t:'no_umbrella_if_rain = 0.10'}, {s:3,t:'no_umbrella_if_sun = 0.80'},
+ {s:4,t:'observations = ["U", "U", "N"]'},
+ {s:5,t:'for day in range(len(observations)):',tag:'start'},
+ {s:5,t:'    observation = observations[day]'},
+ {s:6,t:'    if day > 0:                    # not before day 1',tag:'predict'},
+ {s:6,t:'        next_rain = rain * rain_to_rain + sun * sun_to_rain'},
+ {s:6,t:'        next_sun = rain * rain_to_sun + sun * sun_to_sun'},
+ {s:6,t:'        rain = next_rain'}, {s:6,t:'        sun = next_sun'},
+ {s:7,t:'    if observation == "U":',tag:'weight'},
+ {s:7,t:'        rain_score = rain * umbrella_if_rain'},
+ {s:7,t:'        sun_score = sun * umbrella_if_sun'},
+ {s:7,t:'    else:'},
+ {s:7,t:'        rain_score = rain * no_umbrella_if_rain'},
+ {s:7,t:'        sun_score = sun * no_umbrella_if_sun'},
+ {s:8,t:'    evidence = rain_score + sun_score',tag:'evidence'},
+ {s:9,t:'    rain = rain_score / evidence',tag:'normalize'},
+ {s:9,t:'    sun = sun_score / evidence'},
+ {s:10,t:'    print("Day", day + 1, "observation:", observation,',tag:'print'},
+ {s:10,t:'          "Rain:", round(rain, 4), "Sun:", round(sun, 4))'}],
+ steps:[
+ {h:'First, do not confuse reality and evidence',p:['There are two possibilities for the actual weather: Rain and Sun. Neither is directly visible from inside the classroom. Seeing an umbrella provides a clue, but not certainty.','An HMM is useful when the thing you care about is hidden and you only see imperfect signals related to it.'],py:['We put the state names in a list, and explicitly keep the order Rain, Sun.'],vars:'Hidden states = Rain or Sun'},
+ {h:'Start with a guess that sums to 100%',p:['Before observing day 1, P(Rain) = 0.60 and P(Sun) = 0.40. These are prior probabilities, not facts about the weather.','0.60 + 0.40 = 1.00. This must hold for any complete probability distribution.'],py:['Store the probabilities separately so every later calculation is readable: rain = 0.60 and sun = 0.40.'],vars:'rain = 0.60; sun = 0.40'},
+ {h:'How does weather change between two days?',p:['If it rains today, our example assumes a 70% chance it rains tomorrow and 30% chance of sun. If today is sunny, tomorrow has a 40% chance of rain and 60% chance of sun.','Each row adds to 1: 0.70 + 0.30 = 1 and 0.40 + 0.60 = 1. Transition probabilities connect one hidden day to the next.'],py:['Four descriptive variable names avoid confusing matrix indices while learning.'],vars:'R→R=.70; R→S=.30; S→R=.40; S→S=.60'},
+ {h:'How reliable is the umbrella clue?',p:['When it rains, an umbrella appears 90% of the time. When it is sunny, an umbrella still appears 20% of the time. The reverse observations are 10% and 80%.','Important: P(Umbrella | Rain) = 0.90 is not the same as P(Rain | Umbrella). The second probability must be calculated using the prior and Bayes’ rule.'],py:['For each hidden state, the probabilities of U and N add up to 1.'],vars:'P(U|R)=.90; P(U|S)=.20; P(N|R)=.10; P(N|S)=.80'},
+ {h:'Write down exactly what was observed',p:['Day 1: Umbrella. Day 2: Umbrella. Day 3: No umbrella. These observations are visible facts in the exercise, unlike the weather.','We must process them in order because the belief at the end of one day is the starting point for predicting the next.'],py:['A list preserves the order: observations = ["U", "U", "N"].'],vars:'observations = [U, U, N]'},
+ {h:'Let the loop examine one day at a time',p:['day starts at 0 in Python; day + 1 is the human-readable day number. observation gets the corresponding item from the list.','One trip around the loop performs an entire inference cycle and prints the new probabilities.'],py:['range(len(observations)) produces 0, 1, 2. Indexing observations[day] retrieves U, U, N.'],vars:'day; observation'},
+ {h:'Predict tomorrow before looking at tomorrow’s clue',p:['From day 2 onward, tomorrow can be rainy in two ways: it was rainy and stayed rainy, OR it was sunny and became rainy. Add both routes.','next_rain = rain × 0.70 + sun × 0.40. Similarly next_sun = rain × 0.30 + sun × 0.60. Compute both in temporary variables BEFORE replacing rain and sun.','On day 1, skip this prediction: the supplied initial 60/40 distribution is already the day-1 prior.'],py:['if day > 0: ensures we transition only between observations, not before the first one.'],warn:'Updating rain first and then using that updated rain to compute next_sun mixes probabilities from different days. Use next_rain and next_sun first.',vars:'next_rain; next_sun; updated prior'},
+ {h:'Score each possible weather using the umbrella clue',p:['If we see U, multiply the predicted Rain chance by 0.90 and the predicted Sun chance by 0.20. If we see N, use 0.10 and 0.80 instead.','For day 1 with U, rain_score = 0.60 × 0.90 = 0.54; sun_score = 0.40 × 0.20 = 0.08. Think of these as two competing explanations for the same umbrella sighting.'],py:['The if/else chooses the correct observation likelihood; multiplication combines the weather prior with that likelihood.'],vars:'rain_score; sun_score'},
+ {h:'Find the chance of seeing that observation at all',p:['Add the scores. Day 1: 0.54 + 0.08 = 0.62. This 0.62 is P(Umbrella) under our prior and example model.','Why add? Umbrella could be observed in rain or in sun. These are mutually exclusive ways to account for it.'],py:['evidence = rain_score + sun_score is the denominator in Bayes’ rule.'],vars:'evidence = 0.62 on day 1'},
+ {h:'Convert the scores into meaningful probabilities',p:['Divide each score by their total. Day 1: P(Rain | U) = 0.54 / 0.62 = 0.87097; P(Sun | U) = 0.08 / 0.62 = 0.12903.','Now the two beliefs sum to 1. That is the main idea of normalization: turn unnormalized evidence scores into a legitimate probability distribution.'],py:['Use / for division, not // (floor division).'],vars:'posterior rain; posterior sun; sum = 1'},
+ {h:'Explain the answer, then repeat tomorrow',p:['An umbrella changed our belief from 60% rain to about 87.1% rain. It did not prove rain with 100% certainty, because an umbrella can appear in sun.','We print both probabilities. Tomorrow’s prediction starts from these updated values, not the original 60/40 guess.'],py:['round(value, 4) shortens printed output without changing the full-precision value used next.'],vars:'Rain and Sun probabilities after each day'}],
+ tagInfo:{start:{t:'A new day and a new piece of evidence',d:['We observe only whether the friend carries an umbrella. We do not get to see the actual weather.']},predict:{t:'Predict: account for both paths into each hidden state',d:['Tomorrow’s rain = today rain × Rain→Rain + today sun × Sun→Rain. There is no transition before day 1.']},weight:{t:'Evidence: score each weather explanation',d:['Multiply the predicted weather chance by the chance of seeing this umbrella observation in that weather. The scores need not add to one.']},evidence:{t:'Add the scores: the denominator of Bayes’ rule',d:['The evidence is the overall probability of this observation, accounting for both possible hidden weathers.']},normalize:{t:'Normalize: convert scores to probabilities',d:['Divide each score by the evidence. The result adds to 100% and becomes the next day’s posterior belief.']},print:{t:'Interpret the belief, not as certainty',d:['An estimated 87% rain means strong belief, not that an umbrella proves rain. Only observations up to the current day are used.']}},
+ run(){let F=[],out=[],r=.6,s=.4;const T=[[.7,.3],[.4,.6]],E={U:[.9,.2],N:[.1,.8]},obs=['U','U','N'];let table=[];
+ const frame=(tag,day,o,vr,vs,note,math)=>F.push({tag,day,obs:o,probs:[vr,vs],q:[`Rain: ${(vr*100).toFixed(2)}%`,`Sun: ${(vs*100).toFixed(2)}%`],visited:[`Combined: ${(vr+vs).toFixed(5)}`,`Stage: ${tag}`],note,math,history:table.slice(),out:out.slice()});
+ obs.forEach((o,i)=>{let day=i+1;frame('start',day,o,r,s,`<b>Day ${day}.</b> You see ${o==='U'?'an umbrella':'no umbrella'}. You still cannot see the actual weather.`,[`Before processing: Rain=${r.toFixed(5)}, Sun=${s.toFixed(5)}`]);
+ if(i){const oldr=r,olds=s;r=oldr*.7+olds*.4;s=oldr*.3+olds*.6;frame('predict',day,o,r,s,`<b>Prediction for day ${day}.</b> Both yesterday’s possible weather states contribute to today’s possible weather.`,[`Rain = ${oldr.toFixed(5)} × 0.70 + ${olds.toFixed(5)} × 0.40 = ${r.toFixed(5)}`,`Sun = ${oldr.toFixed(5)} × 0.30 + ${olds.toFixed(5)} × 0.60 = ${s.toFixed(5)}`]);}else frame('predict',day,o,r,s,'<b>Day 1:</b> use the supplied 60/40 prior directly. There is no earlier day to transition from.',['Day 1 prior = [0.60000, 0.40000]']);
+ const priorR=r,priorS=s,lr=E[o][0],ls=E[o][1],wr=r*lr,ws=s*ls;frame('weight',day,o,wr,ws,`<b>Evidence weighting:</b> The bars now show raw scores, NOT probabilities adding to 100%. ${o==='U'?'Umbrellas are much more likely when it rains.':'No umbrella is much more likely in sun.'}`,[`Rain score = ${priorR.toFixed(5)} × ${lr.toFixed(2)} = ${wr.toFixed(5)}`,`Sun score = ${priorS.toFixed(5)} × ${ls.toFixed(2)} = ${ws.toFixed(5)}`]);
+ const z=wr+ws;frame('evidence',day,o,wr,ws,`<b>Total evidence:</b> ${wr.toFixed(5)} + ${ws.toFixed(5)} = ${z.toFixed(5)}. This is P(${o}) based on the current prediction.`,[`P(${o}) = ${wr.toFixed(5)} + ${ws.toFixed(5)} = ${z.toFixed(5)}`]);r=wr/z;s=ws/z;frame('normalize',day,o,r,s,`<b>Posterior:</b> After ${o==='U'?'seeing the umbrella':'seeing no umbrella'}, P(Rain) = ${(r*100).toFixed(2)}%. Both posteriors add to 100%.`,[`Rain = ${wr.toFixed(5)} / ${z.toFixed(5)} = ${r.toFixed(5)}`,`Sun = ${ws.toFixed(5)} / ${z.toFixed(5)} = ${s.toFixed(5)}`]);
+ out.push({t:`Day ${day} observation: ${o} Rain: ${r.toFixed(4)} Sun: ${s.toFixed(4)}`,ok:true});table.push({n:day,o,pr:r,ps:s});frame('print',day,o,r,s,`<b>Day ${day} complete:</b> ${(r*100).toFixed(2)}% Rain, ${(s*100).toFixed(2)}% Sun. Carry these beliefs into the next day.`,[`Posterior Rain = ${r.toFixed(5)}; Posterior Sun = ${s.toFixed(5)}`]);});return F;}
+});
+/* ========================================================================
+   LAB 10: Expanded scalar Kalman Filter with explicit arithmetic
+   ======================================================================== */
+LABS.push({
+ id:'kalman',tab:'Kalman · guided',num:'10',title:'Kalman Filter: combine a guess with a noisy thermometer',viz:'kalman',qLabel:'Temperatures compared',
+ question:`<h2>The story first</h2><div class="title">Lab 10 · A thermometer that is not perfectly accurate</div>
+ <p>You think the classroom is about <b>20°C</b>. A sensor reads <b>22°C</b>. Should your answer immediately jump to 22°C? Not necessarily: both the previous estimate and the sensor can be wrong. A Kalman filter calculates a sensible <b>weighted compromise</b>.</p>
+ <p>We start with an estimate x = 20°C, uncertainty P = 4°C², process noise Q = 1°C², and sensor noise R = 4°C². The sensor then reports 22°C, 21°C, 23°C on three consecutive occasions. We assume no known heating/cooling trend: the next temperature is predicted to equal the previous corrected estimate, but uncertainty grows between measurements.</p>
+ <table class="qtable"><tr><th>Symbol</th><th>Plain-language meaning</th><th>Example start</th></tr><tr><td>x</td><td>Current best temperature estimate</td><td>20°C</td></tr><tr><td>P</td><td>Variance of uncertainty in that estimate</td><td>4°C²</td></tr><tr><td>Q</td><td>Extra variance from unpredictable change</td><td>1°C²</td></tr><tr><td>R</td><td>Variance of sensor error</td><td>4°C²</td></tr><tr><td>z</td><td>New thermometer reading</td><td>22°C first</td></tr><tr><td>K</td><td>Weight given to the new reading</td><td>Calculated</td></tr></table>
+ <p><b>Exam-style task:</b> For each reading, calculate (1) predicted estimate x⁻, (2) predicted variance P⁻, (3) gain K, (4) difference z − x⁻, (5) corrected estimate x, and (6) corrected variance P.</p>
+ <p><b>The five-line cycle:</b> x⁻ = x; P⁻ = P + Q; K = P⁻/(P⁻ + R); x = x⁻ + K(z − x⁻); P = (1 − K)P⁻.</p>
+ <div class="math-guide"><h3>Why all five Kalman equations work</h3><p>We use a <b>one-dimensional random-walk model</b>: true next temperature = current temperature + unpredictable change. The observation is true temperature + sensor error. Both error terms are independent, have mean zero, and have variances Q and R.</p><p><b>Variance versus standard deviation:</b> P = 4 °C² means standard deviation √4 = 2 °C. Variance measures expected squared error, not temperature itself.</p><p><b>Prediction:</b> x⁻ = x because no known trend; P⁻ = P + Q because independent uncertainties add in variance. Initially 20 and 4 + 1 = 5.</p><p><b>Blend:</b> x⁺ = (1−K)x⁻ + Kz = x⁻ + K(z−x⁻). K is how much of the gap between prediction and sensor we travel.</p><p><b>Derive K:</b> prediction and sensor errors are independent. The blend's error variance is V(K) = (1−K)²P⁻ + K²R. Differentiate: dV/dK = −2(1−K)P⁻ + 2KR. Set equal to zero: KP⁻ + KR = P⁻, hence <b>K = P⁻/(P⁻+R)</b>. Its second derivative is 2(P⁻+R) &gt; 0, so this is a minimum.</p><div class="eqline">First reading: K = 5/(5+4) = 5/9 = 0.55556.</div><div class="eqline">Difference = 22−20 = 2; new x = 20 + (5/9)×2 = 21.11111 °C.</div><div class="eqline">Updated P = (1−5/9)×5 = 20/9 = 2.22222 °C².</div><p><b>Limits:</b> if sensor noise R grows, K falls; if prediction uncertainty P⁻ grows, K rises. This simplified formula assumes a direct sensor (H = 1) and independent errors; a general Kalman filter uses matrices.</p></div><p><b>What is K?</b> If K is 0, ignore the sensor; if K is 1, follow the sensor entirely; a value between them blends the two. We derive its formula in the build explanation. In this simple scalar model, both noises have zero mean and are independent, and F = H = 1.</p>`,
+ code:[{s:0,t:'# LAB 10: one-dimensional Kalman filter'},
+ {s:1,t:'x = 20.0               # starting temperature estimate (°C)'},
+ {s:1,t:'P = 4.0                # estimate variance (°C squared)'},
+ {s:2,t:'Q = 1.0                # process noise variance'},
+ {s:2,t:'R = 4.0                # thermometer noise variance'},
+ {s:3,t:'readings = [22.0, 21.0, 23.0]'},
+ {s:4,t:'for step in range(len(readings)):',tag:'start'},
+ {s:4,t:'    z = readings[step]    # the new observed measurement'},
+ {s:5,t:'    x_pred = x           # predict temperature',tag:'predict'},
+ {s:5,t:'    P_pred = P + Q       # prediction is less certain'},
+ {s:6,t:'    K = P_pred / (P_pred + R)  # trust in sensor',tag:'gain'},
+ {s:7,t:'    difference = z - x_pred',tag:'difference'},
+ {s:8,t:'    correction = K * difference',tag:'correct'},
+ {s:8,t:'    x = x_pred + correction'},
+ {s:9,t:'    P = (1 - K) * P_pred',tag:'variance'},
+ {s:10,t:'    print("Reading", step + 1, "sensor", z,',tag:'print'},
+ {s:10,t:'          "estimate", round(x, 4), "K", round(K, 4),'},
+ {s:10,t:'          "variance", round(P, 4))'}],
+ steps:[
+ {h:'The problem: two imperfect sources of information',p:['Suppose you thought the room was 20°C, but the thermometer says 22°C. The old guess may be stale; the thermometer is noisy. We should combine them rather than blindly choosing one.','We express the old guess with a number x = 20 and its uncertainty using variance P = 4°C². Variance is squared units; standard deviation is √P = 2°C.'],py:['Decimal values in Python can be stored in ordinary float variables.'],vars:'x=20°C; P=4°C²'},
+ {h:'Two different reasons for uncertainty',p:['Q represents how much uncertainty is added because the real room may change between readings. R represents how noisy the thermometer is when it measures. They are not interchangeable.','Here Q = 1°C² and R = 4°C². R = 4 means the sensor error has a standard deviation of 2°C; it does not mean every reading is exactly 4°C wrong.'],py:['These are positive variances stored as numbers.'],vars:'Q=1°C²; R=4°C²'},
+ {h:'Put three thermometer measurements in order',p:['The thermometer displays 22, then 21, then 23°C. We will perform a complete prediction and correction on each one.','The filter keeps only the latest estimate and variance to prepare for the next reading. It does not simply average every number in the list.'],py:['The list readings = [22.0, 21.0, 23.0] keeps the order unchanged.'],vars:'readings=[22,21,23]'},
+ {h:'Process each measurement separately',p:['On each loop iteration, z is the new sensor reading and step counts the iteration. For the first pass, z = 22.','Think of this as repeating the same five-question exam solution on three successive readings.'],py:['range(len(readings)) gives indices 0, 1, 2 and readings[step] retrieves each reading.'],vars:'step; z'},
+ {h:'PREDICT: what do we think before looking?',p:['Our simplified model says the room probably stays at its last corrected value. So x⁻ = x. Initially x⁻ = 20°C.','However, time passes, and room conditions can change. Increase uncertainty: P⁻ = P + Q = 4 + 1 = 5°C². The superscript minus simply means “before incorporating this new reading.”'],py:['Save x_pred and P_pred separately so we always know the prediction we are correcting.'],vars:'first x_pred=20; P_pred=5'},
+ {h:'GAIN: how much should we trust the sensor?',p:['The Kalman gain is K = P⁻ / (P⁻ + R). For the first reading: K = 5/(5+4) = 5/9 ≈ 0.55556. This means we move about 55.6% of the way from our prediction toward the sensor.','Where does this come from? Let the corrected guess be (1−K) × prediction + K × sensor. If their independent errors have variances P⁻ and R, its error variance is (1−K)²P⁻ + K²R. Minimizing this expression with respect to K gives −2(1−K)P⁻ + 2KR = 0, so K = P⁻/(P⁻+R).','If R is huge, K is small, so ignore much of an unreliable sensor. If P⁻ is huge, K is larger, so listen to the sensor more.'],py:['/ performs ordinary floating-point division.'],vars:'first K = 5/9 ≈ 0.55556'},
+ {h:'INNOVATION: exactly how much do they disagree?',p:['The innovation (difference) is z − x⁻, which is sensor reading minus predicted estimate. In the first cycle it is 22 − 20 = +2°C.','Positive difference means the thermometer reads higher than our guess; negative means lower. It is only a discrepancy, not yet the correction.'],py:['difference = z - x_pred preserves the signed value.'],vars:'first difference = +2°C'},
+ {h:'CORRECT: move only K of the disagreement',p:['Correction = K × difference. Here it is (5/9) × 2 = 1.11111°C.','New estimate = prediction + correction = 20 + 1.11111 = 21.11111°C. Notice the answer lies between 20°C and 22°C: we trusted both information sources. Equivalently x = (1−K)x⁻ + Kz.'],py:['Split the arithmetic into difference, correction, and x so the trace makes the reasoning transparent.'],vars:'first corrected x ≈ 21.11111°C'},
+ {h:'UPDATE UNCERTAINTY: we now know more',p:['After receiving an informative measurement, the posterior uncertainty is P = (1−K)P⁻. First cycle: (1−5/9) × 5 = 20/9 ≈ 2.22222°C².','This is less than the predicted 5°C² because we combined independent information. Do not confuse uncertainty variance with the temperature estimate.'],py:['Use P_pred, not the old P, in the variance update.'],vars:'first posterior P ≈ 2.22222°C²'},
+ {h:'Record the answer and reuse the posterior',p:['The first answer is about 21.1111°C, K = 0.5556, P = 2.2222°C². On the second pass, our prior is the first corrected estimate, NOT the initial 20°C.','This is why a Kalman filter is recursive: previous posterior → next prediction → new observation → next posterior. The animation repeats every calculation.'],py:['round() only changes how the printed value looks; calculations retain float precision.'],vars:'latest x, K and P'}],
+ tagInfo:{start:{t:'A new noisy thermometer reading arrives',d:['A reading z is new evidence, not automatically the real room temperature.']},predict:{t:'Predict x and increase uncertainty P',d:['Assuming no known trend, x_pred = previous x. Process noise increases predicted variance: P_pred = P + Q.']},gain:{t:'Choose the optimal weighting K',d:['For independent scalar Gaussian errors, minimizing the fused variance yields K = P_pred/(P_pred + R). It tells us how far to move toward the sensor.']},difference:{t:'Measure disagreement: sensor minus prediction',d:['The innovation is signed: z − x_pred. Do not change the estimate until it is multiplied by K.']},correct:{t:'Apply only the weighted correction',d:['x = x_pred + K × (z − x_pred). It is a compromise between the prediction and sensor measurement.']},variance:{t:'Recalculate our uncertainty',d:['Posterior P = (1 − K)P_pred. Use the newly predicted variance, not the old one.']},print:{t:'Write the final line for this measurement',d:['The updated estimate and variance become the input to the next prediction.']}},
+ run(){let F=[],out=[],x=20,P=4,Q=1,R=4,h=[];const readings=[22,21,23];const frame=(tag,n,z,xp,pp,k,note,math,innovation)=>F.push({tag,step:n,z,x,xpred:xp,P,Ppred:pp,K:k,innovation,probs:[x,z],q:[`Estimate: ${x.toFixed(4)}°C`,`Sensor: ${z.toFixed(4)}°C`],visited:[`P: ${P.toFixed(4)}°C²`,`K: ${k==null?'not yet':k.toFixed(5)}`],note,math,history:h.slice(),out:out.slice()});
+ readings.forEach((z,i)=>{let n=i+1,oldx=x,oldp=P,xp=x,pp=P+Q;
+ frame('start',n,z,oldx,oldp,null,`<b>Measurement ${n}:</b> the thermometer says ${z}°C. Before using it, our current best guess is ${oldx.toFixed(5)}°C.`,[`Old x = ${oldx.toFixed(5)}°C; old P = ${oldp.toFixed(5)}°C²`],null);
+ frame('predict',n,z,xp,pp,null,`<b>Prediction:</b> no known heating/cooling trend, so predicted x = ${xp.toFixed(5)}°C, but process noise Q increases uncertainty.`,[`x⁻ = ${oldx.toFixed(5)}°C`,`P⁻ = ${oldp.toFixed(5)} + ${Q} = ${pp.toFixed(5)}°C²`],null);
+ let k=pp/(pp+R);frame('gain',n,z,xp,pp,k,`<b>Kalman gain:</b> K = ${k.toFixed(5)}. This gives the sensor ${(100*k).toFixed(2)}% of the weight in the correction.`,[`K = P⁻/(P⁻+R) = ${pp.toFixed(5)}/(${pp.toFixed(5)} + ${R}) = ${k.toFixed(5)}`],null);
+ let diff=z-xp;frame('difference',n,z,xp,pp,k,`<b>Innovation:</b> ${z} − ${xp.toFixed(5)} = ${diff.toFixed(5)}°C. This is the gap to consider, not yet the amount we move.`,[`z − x⁻ = ${z.toFixed(5)} − ${xp.toFixed(5)} = ${diff.toFixed(5)}°C`],diff);
+ let correction=k*diff;x=xp+correction;frame('correct',n,z,xp,pp,k,`<b>Corrected estimate:</b> move ${(100*k).toFixed(2)}% of the difference, ${correction.toFixed(5)}°C, from prediction to sensor.`,[`Correction = ${k.toFixed(5)} × ${diff.toFixed(5)} = ${correction.toFixed(5)}°C`,`x = ${xp.toFixed(5)} + ${correction.toFixed(5)} = ${x.toFixed(5)}°C`],diff);
+ P=(1-k)*pp;frame('variance',n,z,xp,pp,k,`<b>Posterior uncertainty:</b> the independent measurement reduces variance from ${pp.toFixed(5)} to ${P.toFixed(5)}°C².`,[`P = (1 − ${k.toFixed(5)}) × ${pp.toFixed(5)} = ${P.toFixed(5)}°C²`],diff);
+ out.push({t:`Reading ${n} sensor ${z.toFixed(1)} estimate ${x.toFixed(4)} K ${k.toFixed(4)} variance ${P.toFixed(4)}`,ok:true});h.push({n,z,x,k,P});frame('print',n,z,xp,pp,k,`<b>Measurement ${n} complete:</b> corrected temperature ${x.toFixed(4)}°C; variance ${P.toFixed(4)}°C². Carry these values forward.`,[`Final x = ${x.toFixed(5)}°C`,`Final P = ${P.toFixed(5)}°C²`],diff);});return F;}
+});
+/* ========================================================================
+   LAB 11: Discrete Metropolis-Hastings MCMC. Fixed proposed moves and uniform
+   draws make the entire example inspectable and reproducible.
+   ======================================================================== */
+LABS.push({
+ id:'mcmc',tab:'MCMC · guided',num:'11',title:'MCMC: three rooms and a biased visitor',viz:'mcmc',qLabel:'Current room / proposed room',
+ question:`<h2>A small story before mathematics</h2><div class="title">Lab 11 · Visit three rooms in the right proportions</div>
+ <p>Imagine a museum with just <b>three rooms A, B and C</b>. The rooms have attraction weights <b>1, 2 and 3</b>. Your aim is to produce a long sequence of visits such that C appears most often, B next, and A least often. You cannot simply always choose C: we want <b>samples from a probability distribution</b>, not the room with the maximum weight.</p>
+ <table class="qtable"><tr><th>Room</th><th>Weight w</th><th>Desired proportion π = w / total</th></tr><tr><td>A</td><td>1</td><td>1/6 = 16.67%</td></tr><tr><td>B</td><td>2</td><td>2/6 = 33.33%</td></tr><tr><td>C</td><td>3</td><td>3/6 = 50.00%</td></tr></table>
+ <p><b>The rule:</b> Begin at A. At each step propose one of the <i>other</i> two rooms, with 50% probability for each. Calculate acceptance α = min(1, proposed weight / current weight). Generate a random number u from 0 to 1. If u &lt; α, move to the proposal; otherwise remain in your current room. <b>Record the room after every decision, including rejections.</b></p>
+ <div class="math-guide"><h3>What does Markov Chain Monte Carlo mean?</h3><p><b>Markov chain:</b> the next move depends on the room you are in now, not the entire earlier visiting history. <b>Monte Carlo:</b> repeated random choices help estimate probabilities or averages. <b>MCMC:</b> construct a Markov chain whose long-run proportion of visits approaches a chosen target distribution π.</p>
+ <p><b>Why the ratio?</b> In Metropolis–Hastings, α(i→j) = min[1, π(j)q(i|j)/(π(i)q(j|i))], where q(j|i) is the probability of proposing j while in i. Here both directions have proposal probability 1/2, so the q factors cancel. π values contain the same normalizing factor 1/6, so that cancels too. We only need <b>min(1, w(j)/w(i))</b>.</p>
+ <div class="eqline">A → C: min(1, 3/1) = 1. Always accept.</div><div class="eqline">C → A: min(1, 1/3) = 0.3333. Accept about one-third of proposals.</div><div class="eqline">C → B: min(1, 2/3) = 0.6667. Accept about two-thirds of proposals.</div>
+ <p><b>Why does this work?</b> For two different rooms i and j, π(i)q(j|i)α(i→j) = π(j)q(i|j)α(j→i). This is called detailed balance: long-run flow between pairs balances. In this example the chain can reach every room and can stay in place after rejection, so its distribution converges to π. Twelve moves demonstrate the mechanism, not a guarantee of accurate percentages; larger runs are needed for stable estimates.</p></div>
+ <p><b>Worked trace:</b> At A, propose C and take u=0.80: α=min(1,3/1)=1, so accept and move to C. Next, at C propose A and take u=0.50: α=min(1,1/3)=0.3333, so reject and <b>record C again</b>. The sequence is correlated; this is not independent sampling.</p>
+ <p><b>Exercise:</b> Explain what happens when C proposes B with u=0.60, and when C proposes B with u=0.90. Why do we keep rejected positions in the sample sequence?</p>`,
+ code:[
+ {s:0,t:'# LAB 11: discrete Metropolis-Hastings MCMC'},
+ {s:1,t:'rooms = ["A", "B", "C"]'},
+ {s:1,t:'weights = {"A": 1, "B": 2, "C": 3}'},
+ {s:2,t:'total = sum(weights.values())'},
+ {s:2,t:'target = {r: weights[r] / total for r in rooms}'},
+ {s:3,t:'current = "A"      # where the visitor starts'},
+ {s:3,t:'samples = []       # save position AFTER each move'},
+ {s:4,t:'# Fixed proposal/uniform pairs allow an exact trace'},
+ {s:4,t:'trials = [("C", .80), ("A", .50), ("B", .60),'},
+ {s:4,t:'          ("A", .20), ("C", .70), ("B", .90),'},
+ {s:4,t:'          ("A", .40), ("C", .10), ("B", .50),'},
+ {s:4,t:'          ("A", .90), ("B", .30), ("C", .20)]'},
+ {s:5,t:'for step, (proposed, u) in enumerate(trials, 1):',tag:'start'},
+ {s:6,t:'    old_weight = weights[current]',tag:'proposal'},
+ {s:6,t:'    new_weight = weights[proposed]'},
+ {s:7,t:'    ratio = new_weight / old_weight',tag:'ratio'},
+ {s:7,t:'    alpha = min(1.0, ratio)'},
+ {s:8,t:'    if u < alpha:',tag:'decision'},
+ {s:8,t:'        current = proposed            # accept'},
+ {s:8,t:'    # on rejection, current does NOT change'},
+ {s:9,t:'    samples.append(current)',tag:'record'},
+ {s:9,t:'    print(step, "u=", u, "alpha=", round(alpha, 3),'},
+ {s:9,t:'          "room=", current)'},
+ {s:10,t:'counts = {r: samples.count(r) for r in rooms}',tag:'summary'},
+ {s:10,t:'print("Counts:", counts)'},
+ {s:10,t:'print("Target probabilities:", target)'},
+ {s:11,t:'# For an actual random simulation, replace trials with'},
+ {s:11,t:'# proposed = random.choice([r for r in rooms if r != current])'},
+ {s:11,t:'# u = random.random()   # after: import random'}],
+ steps:[
+ {h:'What are we trying to sample?',p:['Rooms A, B and C have relative weights 1, 2, 3. A weight is not yet a probability. We want the visitor to spend approximately 1/6, 2/6, and 3/6 of a long run in those rooms.','Unlike optimization (find the largest weight), sampling must still visit less popular rooms.'],py:['A list holds the room names. A dictionary maps each room name to its weight.'],vars:'A:1, B:2, C:3'},
+ {h:'Convert weights into the target distribution',p:['Total = 1 + 2 + 3 = 6. Therefore π(A)=1/6, π(B)=2/6 and π(C)=3/6. π is the target distribution, not the short-run observed frequency.','Metropolis–Hastings can use unnormalized weights because their common total cancels in the acceptance ratio.'],py:['sum(weights.values()) adds the dictionary values; the dictionary comprehension builds target probabilities.'],vars:'target = {A:.16667, B:.33333, C:.5}'},
+ {h:'Define what the Markov chain remembers',p:['We start in A. For the decision about the next room, the algorithm only needs the current room; it need not examine earlier moves. That is the Markov property.','Keep a separate samples list: one entry per completed decision, even when the proposal is rejected.'],py:['current is a string. samples is initially an empty list.'],vars:'current=A; samples=[]'},
+ {h:'Use fixed random-looking inputs so nothing is hidden',p:['Each pair is (proposed room, uniform draw u). The pairs are fixed here so you can reproduce every decision with pencil and paper.','For a real run, propose uniformly from the other two rooms and generate a fresh independent uniform number in [0,1) on every step. The fixed proposals and draws here illustrate one possible trace; they are not themselves a random sampling procedure.'],py:['A list of tuples preserves the order; (.80) is a floating-point number.'],vars:'12 proposals and displayed u values'},
+ {h:'Begin one decision',p:['For each (proposal, u), first note the current position. Check that the proposal is a different room.','The displayed u acts like a random threshold: low u makes acceptance easier.'],py:['enumerate(trials, 1) produces step numbers 1,2,… and unpacks each trial tuple.'],vars:'step, proposed, u'},
+ {h:'Look up both weights',p:['old_weight is the current room’s attraction; new_weight is the proposed room’s attraction. Nothing moves yet.','Example at A proposing C: old_weight=1 and new_weight=3.'],py:['weights[current] and weights[proposed] use the dictionary keys to retrieve their values.'],vars:'old_weight and new_weight'},
+ {h:'Calculate the mathematical acceptance probability',p:['For symmetric proposals, α = min(1, new_weight/old_weight). The min prevents a probability greater than 1.','Moving uphill in weight is always accepted; moving downhill sometimes succeeds. C→A has α=1/3, whereas A→C has α=1. This bias creates the intended occupancy pattern in the long run.','General formula: α(i→j)=min(1, π(j)q(i|j)/[π(i)q(j|i)]). Only simplify it to a weight ratio if the proposal is symmetric.'],py:['/ is real division. min(1.0, ratio) caps the result at one.'],vars:'ratio and alpha'},
+ {h:'Compare u against alpha, then accept or reject',p:['If u<α, move: current=proposed. Otherwise remain exactly where you were. A rejected move is still a full MCMC step.','Worked example: C proposes A, so α=1/3. With u=0.50, 0.50<0.3333 is false. We stay in C. With u=0.20 it would be true.'],py:['A simple if controls the move. No else is needed because rejection means leaving current untouched.'],vars:'current may change or stay'},
+ {h:'Record the position after EVERY decision',p:['This is essential: after rejection, add the current room to samples again. Otherwise you would wrongly omit the time spent in a room and distort the sampled distribution.','The output prints the step, u, alpha and resulting room so every line can be checked manually.'],py:['samples.append(current) adds one new observation of the chain state.'],vars:'samples grows by one per decision'},
+ {h:'Compare sampled occupancy with the target',p:['Count appearances of each room in the saved chain. Divide by number of samples to estimate the occupancy probabilities.','With only twelve transitions, frequency need not equal 16.67%, 33.33%, 50%. The theorem concerns long-run behavior under a proper random proposal mechanism; a fixed classroom trace cannot prove convergence.'],py:['samples.count(r) finds how often each room appears.'],vars:'counts for A, B, C'},
+ {h:'Turn the teaching trace into a real Monte Carlo experiment',p:['Import random and, at each step, choose uniformly between rooms other than current; then draw u independently with random.random(). Keep the exact same acceptance and recording rules.','In an applied MCMC study, inspect convergence, autocorrelation and initialization effects. Neighboring samples are dependent, so 10,000 chain steps do not automatically mean 10,000 independent samples.'],py:['random.choice selects a candidate; random.random() returns a float from [0,1).'],vars:'same algorithm, randomly generated proposals and thresholds'}],
+ tagInfo:{start:{t:'One Markov step starts',d:['We start with a current room and one proposed alternative. The proposal and uniform draw have been fixed for classroom reproducibility.']},proposal:{t:'Compare the two relative weights',d:['A proposal does not immediately move us. Look up old and proposed weights first.']},ratio:{t:'Derive the acceptance probability',d:['Because every other room is proposed with probability 1/2, forward and reverse proposal probabilities cancel. alpha = min(1, proposed weight/current weight).']},decision:{t:'Accept or stay based on u < alpha',d:['The acceptance threshold is a probability, not a score to maximize. If the random draw is above it, remain in the old room.']},record:{t:'Record the resulting state even after rejection',d:['A repeated room is a meaningful sample: the chain spent another step there. Discarding repeats biases the occupancy frequencies.']},summary:{t:'Short-run frequencies versus the theoretical target',d:['The 12-step path illustrates mechanics, not convergence. Genuine long-run estimates use new random proposals and draws.']}},
+ run(){let F=[],out=[],current='A',samples=[],rooms=['A','B','C'],w={A:1,B:2,C:3},trials=[['C',.80],['A',.50],['B',.60],['A',.20],['C',.70],['B',.90],['A',.40],['C',.10],['B',.50],['A',.90],['B',.30],['C',.20]];
+ const snap=(tag,n,proposed,u,a,old,math,note)=>F.push({tag,step:n,current,proposed,u,alpha:a,old,samples:samples.slice(),q:[`Current: ${current}`,`Proposal: ${proposed||'none'}`],visited:[`Recorded steps: ${samples.length}`,`Target: A 1/6, B 2/6, C 3/6`],math,note,out:out.slice()});
+ trials.forEach(([proposed,u],i)=>{let n=i+1,old=current,ow=w[old],nw=w[proposed],ratio=nw/ow,a=Math.min(1,ratio);snap('start',n,proposed,u,null,old,[`Starting at ${old}; proposed ${proposed}; u = ${u.toFixed(2)}`],`<b>Step ${n}.</b> Currently in ${old}. Proposed room: ${proposed}. Uniform threshold u=${u.toFixed(2)}.`);snap('proposal',n,proposed,u,null,old,[`weight(${old}) = ${ow}`,`weight(${proposed}) = ${nw}`],`Compare old and new room weights, before deciding whether to move.`);snap('ratio',n,proposed,u,a,old,[`ratio = ${nw} / ${ow} = ${ratio.toFixed(5)}`,`alpha = min(1, ${ratio.toFixed(5)}) = ${a.toFixed(5)}`],`<b>Acceptance probability α = ${a.toFixed(5)}.</b> Uphill proposals are always accepted; downhill moves can still happen.`);let accept=u<a;if(accept)current=proposed;snap('decision',n,proposed,u,a,old,[`${u.toFixed(2)} < ${a.toFixed(5)} ? ${accept?'YES':'NO'}`,accept?`MOVE: ${old} → ${proposed}`:`STAY: ${old} (proposal rejected)`],accept?`<b>Accepted.</b> Move to ${proposed}.`:`<b>Rejected.</b> Stay at ${old}; do NOT erase this step.`);samples.push(current);out.push({t:`${n}: ${old}->${proposed} u=${u.toFixed(2)} alpha=${a.toFixed(3)} ${accept?'ACCEPT':'REJECT'} => ${current}`,ok:accept});snap('record',n,proposed,u,a,old,[`samples.append('${current}')`,`Recorded path = ${samples.join(' → ')}`],`<b>Record room ${current}.</b> Count both moves and stays. There are now ${samples.length} samples.`);});let counts=rooms.map(r=>samples.filter(x=>x===r).length);out.push({t:`Counts: A=${counts[0]}, B=${counts[1]}, C=${counts[2]}`,ok:true});out.push({t:'Target: A=0.1667 B=0.3333 C=0.5000',ok:true});snap('summary',13,null,null,null,current,[`Observed counts A=${counts[0]}, B=${counts[1]}, C=${counts[2]}`,`Observed proportions: ${counts.map((c,i)=>rooms[i]+'='+(c/samples.length).toFixed(4)).join(', ')}`,`Target proportions: A=.1667, B=.3333, C=.5000`],`<b>Trace complete.</b> The observed percentages are illustrative and can differ from the target after only 12 decisions.`);return F;}
+});
+function renderMCMC(){
+ const f=mode==='run'?frames[idx]:null, rooms=['A','B','C'],weights=[1,2,3],counts=rooms.map(r=>f?f.samples.filter(x=>x===r).length:0),n=f?f.samples.length:0;
+ let v='<svg viewBox="0 0 600 185" role="img" aria-label="three-room MCMC state and proposed move">';
+ rooms.forEach((r,i)=>{let x=105+i*195,isCurrent=f&&f.current===r,isProposed=f&&f.proposed===r;v+=`<rect x="${x-55}" y="36" width="110" height="82" rx="9" fill="${isCurrent?'var(--current)':'var(--ground)'}" stroke="${isProposed?'var(--frontier)':'var(--rule)'}" stroke-width="${isProposed?5:2}"/><text x="${x}" y="71" text-anchor="middle" font-size="22" font-weight="700" fill="${isCurrent?'white':'var(--ink)'}">${r}</text><text x="${x}" y="96" text-anchor="middle" font-size="12" fill="${isCurrent?'white':'var(--ink-soft)'}">weight ${weights[i]}</text><text x="${x}" y="143" text-anchor="middle" font-size="12" fill="var(--ink-soft)">Target ${(100*weights[i]/6).toFixed(1)}%</text>`});v+='</svg>';
+ v+=`<div class="walk-card"><b>Read the diagram</b><p>Filled room = current state. Outlined room = proposal. A rejection keeps the filled room unchanged. After each decision, add that room once to the recorded path.</p><div class="metric-grid"><span>Step <b>${f?Math.min(f.step,12):'not started'}</b></span><span>u (threshold) <b>${f&&f.u!=null?f.u.toFixed(2):'—'}</b></span><span>Acceptance α <b>${f&&f.alpha!=null?f.alpha.toFixed(5):'—'}</b></span><span>Samples saved <b>${n}</b></span></div></div>`;
+ if(f&&f.math)v+=`<div class="walk-card"><b>Arithmetic at this exact step</b>${f.math.map(t=>`<div class="eqline">${esc(t)}</div>`).join('')}</div>`;
+ v+=`<div class="walk-card"><b>Recorded chain, including repeated rooms</b><p style="overflow-wrap:anywhere;font-family:var(--mono)">${f&&n?esc(f.samples.join(' → ')):'No samples saved yet.'}</p><table class="qtable"><tr><th>Room</th><th>Visits</th><th>Observed frequency</th><th>Target</th></tr>${rooms.map((r,i)=>`<tr><td>${r}</td><td>${counts[i]}</td><td>${n?(100*counts[i]/n).toFixed(1)+'%':'—'}</td><td>${(100*weights[i]/6).toFixed(1)}%</td></tr>`).join('')}</table><p>Short trace ≠ convergence. Percentages above are empirical frequencies, not proof of the target distribution.</p></div>`;
+ $('viz').innerHTML=v;
+}
+function renderProbabilityLab(){
+ const f=mode==='run'?frames[idx]:null;
+ if(lab.viz==='prob'){
+  const vals=f?f.probs:[.6,.4];let v='<svg viewBox="0 0 600 198" role="img" aria-label="belief in hidden Rain and Sun states">';
+  ['Rain (hidden)','Sun (hidden)'].forEach((name,i)=>{let y=28+i*80;v+=`<text x="20" y="${y+13}" font-size="14" fill="var(--ink)">${name}</text><rect x="160" y="${y-5}" width="320" height="30" fill="var(--ground)"/><rect x="160" y="${y-5}" width="${Math.max(0,320*vals[i])}" height="30" fill="${i?'var(--frontier)':'var(--current)'}" style="transition:width .35s"/><text x="490" y="${y+16}" font-size="15" fill="var(--ink)">${(vals[i]*100).toFixed(2)}%</text>`});v+='</svg>';
+  v+=`<div class="walk-card"><b>Only observation visible:</b> ${f?(f.obs==='U'?'☂ Umbrella':'○ No umbrella'):'Not yet observed'}<br><span class="dim">The weather itself is never directly revealed. During likelihood weighting the bars are raw scores and may not total 100%.</span></div>`;
+  if(f&&f.math)v+=`<div class="walk-card"><b>Arithmetic at this exact step</b>${f.math.map(x=>`<div class="eqline">${esc(x)}</div>`).join('')}</div>`;
+  if(f&&f.history.length)v+=`<div class="walk-card"><b>Completed days</b><table class="qtable"><tr><th>Day</th><th>Observed</th><th>Rain belief</th><th>Sun belief</th></tr>${f.history.map(h=>`<tr><td>${h.n}</td><td>${h.o==='U'?'Umbrella':'No umbrella'}</td><td>${(100*h.pr).toFixed(2)}%</td><td>${(100*h.ps).toFixed(2)}%</td></tr>`).join('')}</table></div>`;
+  $('viz').innerHTML=v;return;
+ }
+ const x=f?f.x:20,z=f?f.z:22,xp=f?f.xpred:20,P=f?f.P:4,pp=f?f.Ppred:5,K=f?f.K:null;
+ let v='<svg viewBox="0 0 600 155" role="img" aria-label="noisy sensor reading versus corrected temperature"><line x1="40" y1="80" x2="555" y2="80" stroke="var(--rule)" stroke-width="3"/>';
+ for(let t=17;t<=25;t++){let tx=40+(t-17)/8*515;v+=`<line x1="${tx}" y1="74" x2="${tx}" y2="87" stroke="var(--ink-soft)"/><text x="${tx}" y="107" text-anchor="middle" font-size="12" fill="var(--ink-soft)">${t}°</text>`;}
+ let xx=40+(x-17)/8*515,zx=40+(z-17)/8*515,px=40+(xp-17)/8*515;
+ v+=`<circle cx="${px}" cy="80" r="10" fill="var(--visited)" opacity=".6"/><circle cx="${zx}" cy="80" r="8" fill="var(--frontier)"/><circle cx="${xx}" cy="80" r="6" fill="var(--current)" stroke="white" stroke-width="2"/><text x="16" y="20" font-size="12" fill="var(--visited)">● Prediction: ${xp.toFixed(3)}°C</text><text x="225" y="20" font-size="12" fill="var(--frontier)">● Sensor: ${z.toFixed(3)}°C</text><text x="412" y="20" font-size="12" fill="var(--current)">● Estimate: ${x.toFixed(3)}°C</text></svg>`;
+ v+=`<div class="walk-card"><b>Latest measurements</b><div class="metric-grid"><span>Sensor z <b>${z.toFixed(4)}°C</b></span><span>Prediction x⁻ <b>${xp.toFixed(4)}°C</b></span><span>Prediction P⁻ <b>${pp.toFixed(4)}°C²</b></span><span>Gain K <b>${K===null?'not yet':K.toFixed(5)}</b></span><span>Corrected x <b>${x.toFixed(4)}°C</b></span><span>Current P <b>${P.toFixed(4)}°C²</b></span></div></div>`;
+ if(f&&f.math)v+=`<div class="walk-card"><b>Arithmetic at this exact step</b>${f.math.map(t=>`<div class="eqline">${esc(t)}</div>`).join('')}</div>`;
+ if(f&&f.history.length)v+=`<div class="walk-card"><b>Completed measurements</b><table class="qtable"><tr><th>#</th><th>Sensor</th><th>Updated x</th><th>K</th><th>Variance P</th></tr>${f.history.map(h=>`<tr><td>${h.n}</td><td>${h.z.toFixed(2)}</td><td>${h.x.toFixed(4)}</td><td>${h.k.toFixed(4)}</td><td>${h.P.toFixed(4)}</td></tr>`).join('')}</table></div>`;
+ $('viz').innerHTML=v;
+}
 /* =========================================================================
    Shared code builders for the graph searches
    ========================================================================= */
@@ -2014,6 +2222,13 @@ function renderState(){
   qc.innerHTML=""; vc.innerHTML="";
   const secondLabel = document.querySelector('#visited').previousElementSibling;
 
+  if(lab.viz==="prob" || lab.viz==="kalman" || lab.viz==="mcmc"){
+    secondLabel.textContent=lab.viz==="prob"?"probability check":lab.viz==="kalman"?"filter state":"sampling record";
+    (f?f.q:[]).forEach(v=>{const c=document.createElement("span");c.className="chip";c.textContent=v;qc.appendChild(c);});
+    (f?f.visited:[]).forEach(v=>{const c=document.createElement("span");c.className="chip v";c.textContent=v;vc.appendChild(c);});
+    if(!f){qc.innerHTML='<span class="chip none">run to see values</span>';vc.innerHTML='<span class="chip none">not started</span>';}
+    $("note").innerHTML=f?f.note:"Switch to <b>Run the code</b> to see each mathematical update.";return;
+  }
   if(lab.viz==="curve"){
     const items = f ? (f.chips||[]) : [];
     if(!items.length) qc.innerHTML='<span class="chip none">nothing being compared yet</span>';
@@ -2079,7 +2294,7 @@ function renderConsole(){
 function renderLegend(){
   const searchLeg=[["frontier","In queue"],["current","Expanding now"],["visited","Visited"],["goal","Goal"],["dead","Untouched"]];
   const curveLeg=[["current","Current x"],["frontier","Neighbour probed"],["goal",lab.id==="anneal"?"Candidate move":"Global maximum"],["dead","Local maximum"]];
-  const L = lab.viz==="curve" ? curveLeg : searchLeg;
+  const L = lab.viz==="mcmc" ? [["current","Current room"],["frontier","Proposed room"]] : lab.viz==="curve" ? curveLeg : (lab.viz==="prob" || lab.viz==="kalman") ? [["current","Estimate / Rain"],["frontier","Measurement / Sun"]] : searchLeg;
   $("legend").innerHTML = L.map(([c,t])=>`<span><i class="dot" style="background:var(--${c})"></i>${t}</span>`).join("");
 }
 
@@ -2094,7 +2309,7 @@ function render(){
     : "The same program, now executing. Watch the highlighted line.";
   if(mode==="run" && !frames.length) frames = lab.run();
   renderCode(); renderExplain();
-  if(lab.viz==="jug") renderJugs(); else if(lab.viz==="curve") renderCurve(); else renderGraph();
+  if(lab.viz==="jug") renderJugs(); else if(lab.viz==="curve") renderCurve(); else if(lab.viz==="prob" || lab.viz==="kalman") renderProbabilityLab(); else if(lab.viz==="mcmc") renderMCMC(); else renderGraph();
   renderState(); renderConsole();
   const m=maxIdx();
   $("prev").disabled = idx<=0;
