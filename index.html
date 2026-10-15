@@ -63,6 +63,8 @@ body{
 }
 .tab .num{opacity:.5;margin-right:7px}
 .tab:focus-visible{outline:2px solid var(--current);outline-offset:2px}
+.tab.exam-tab{font-weight:800;color:#991b1b;border-color:#fecaca;background:#fff7f7}
+.tab.exam-tab[aria-selected="true"]{background:#991b1b;color:#fff;border-color:#991b1b;box-shadow:none}
 
 /* ---------- question ---------- */
 .question{
@@ -229,6 +231,63 @@ svg{display:block;width:100%;height:auto}
 .progress i{position:absolute;left:0;top:0;bottom:0;background:var(--current);transition:width .3s ease}
 .counter{font-family:var(--mono);font-size:12px;color:#9aa8c2;min-width:74px;text-align:right}
 .math-guide{border-top:1px solid var(--rule);padding:12px 0;margin:12px 0}.math-guide h3{font-size:16px;margin:0 0 8px}.math-guide p{margin:8px 0}.math-guide .eqline{padding:8px;background:#f4f7fc;margin:5px 0}.walk-card{margin:9px 12px;padding:12px;border:1px solid var(--rule);background:#fbfcfe;font-size:13px;line-height:1.65}.walk-card>b{font-family:var(--mono);font-size:11px;letter-spacing:.045em;text-transform:uppercase}.walk-card .dim{color:var(--ink-soft)}.eqline{font-family:var(--mono);white-space:normal;overflow-wrap:anywhere;padding:5px 0;border-bottom:1px solid var(--ground);font-size:12px}.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:7px}.metric-grid span{background:var(--ground);padding:6px;font-family:var(--mono);font-size:11px}.metric-grid b{display:block;font-size:13px}.walk-card .qtable{width:100%;font-size:11px}.question .qtable{max-width:100%}@media(max-width:600px){.metric-grid{grid-template-columns:1fr}.walk-card{margin:8px 4px;padding:8px}.question{overflow-x:auto}}
+
+
+/* ---------- examination ---------- */
+.exam-page{background:var(--paper);border:1px solid var(--rule);padding:20px;min-height:560px}
+.exam-page[hidden]{display:none!important}
+.exam-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:18px}
+.exam-head h2{font-family:var(--mono);font-size:20px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 5px}
+.exam-head p{margin:0;color:var(--ink-soft);max-width:75ch}
+.exam-statbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 18px}
+.exam-stat{border:1px solid var(--rule);background:#f8fafc;padding:8px 12px;font-family:var(--mono);font-size:12px}
+.exam-gate{max-width:760px;margin:38px auto;border:1px solid var(--rule);border-left:4px solid var(--current);padding:22px;background:#fbfcfe}
+.exam-gate h3{margin:0 0 8px;font-size:18px}
+.exam-gate label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin:16px 0 6px;color:var(--ink-soft)}
+.exam-gate input{width:min(420px,100%);padding:11px 12px;border:1px solid var(--rule);font:15px var(--mono);background:#fff;color:var(--ink)}
+.exam-gate button,.exam-actions button,.exam-actions a{appearance:none;border:1px solid var(--ink);background:var(--ink);color:#fff;padding:10px 16px;font-family:var(--mono);font-size:12px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;margin-top:12px;text-decoration:none;display:inline-block}
+.exam-gate button:hover,.exam-actions button:hover{opacity:.9}
+.exam-gate button.secondary,.exam-actions button.secondary,.exam-actions a.secondary{background:#fff;color:var(--ink);border-color:var(--rule)}
+.exam-gate .exam-note{margin-top:12px;font-size:12.5px;color:var(--ink-soft)}
+.exam-error{margin-top:10px;color:#b91c1c;font-weight:600;min-height:20px}
+.exam-integrity{position:sticky;top:8px;z-index:6;background:#fff7ed;border:1px solid #fdba74;border-left:4px solid #ea580c;padding:9px 12px;margin-bottom:16px;font-size:12.5px}
+.exam-question{border:1px solid var(--rule);padding:16px 18px;margin:0 0 14px;background:#fff;user-select:none;-webkit-user-select:none}
+.exam-question.answered{border-left:4px solid var(--frontier)}
+.exam-question.correct{border-left:4px solid var(--visited);background:#f6fffb}
+.exam-question.wrong{border-left:4px solid #b91c1c;background:#fff8f8}
+.exam-question h4{margin:0 0 9px;font-size:15px;line-height:1.5}
+.exam-topic{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
+.exam-option{display:flex;align-items:flex-start;gap:9px;padding:8px 9px;border:1px solid transparent;margin:4px 0;cursor:pointer}
+.exam-option:hover{background:#f7f9fc;border-color:#e5eaf2}
+.exam-option input{margin-top:4px;accent-color:var(--frontier)}
+.exam-review{font-size:12.5px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--rule)}
+.exam-review b.ok{color:var(--visited)} .exam-review b.bad{color:#b91c1c}
+.exam-policy,.exam-help-rule{margin-top:14px;padding:12px 14px;border:1px solid #f2c66d;border-left:4px solid var(--goal);background:#fffbeb;font-size:13px;line-height:1.65}
+.exam-help-rule{margin:0 0 16px}
+.exam-helpbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px dashed var(--rule)}
+.exam-help-btn{appearance:none;border:1px solid var(--rule);background:#fff;color:var(--ink);font-family:var(--mono);font-size:11px;padding:8px 11px;cursor:pointer}
+.exam-help-btn:hover{background:#f8fafc}
+.exam-help-btn:disabled{opacity:.55;cursor:not-allowed}
+.exam-help-btn.guidance-btn{border-color:#d59b2d;background:#fffbeb}
+.exam-help-btn.solution-btn{border-color:#b91c1c;background:#fff7f7;color:#991b1b}
+.exam-help-btn.used{font-weight:700}
+.exam-help-panel{margin-top:10px;padding:12px 14px;border:1px solid var(--rule);font-size:13.5px;line-height:1.6}
+.exam-help-panel[hidden]{display:none!important}
+.exam-help-panel p{margin:5px 0 0}
+.guidance-panel{border-left:4px solid #d59b2d;background:#fffdf5}
+.solution-panel{border-left:4px solid #b91c1c;background:#fff8f8}
+.penalty-note{margin-top:8px;font-family:var(--mono);font-size:11px;font-weight:700;color:#8a5a00}
+.danger-note{color:#991b1b}
+.exam-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 0 2px;border-top:2px solid var(--ink);margin-top:18px}
+.exam-actions .danger{background:#b91c1c;border-color:#b91c1c}
+.exam-result{border:1px solid var(--rule);border-left:5px solid var(--visited);background:#f4fbf9;padding:18px;margin-bottom:18px}
+.exam-result h3{margin:0 0 8px;font-size:20px}
+.exam-score{font-family:var(--mono);font-size:28px;font-weight:700;margin:6px 0}
+.exam-history{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px}
+.exam-history th,.exam-history td{border:1px solid var(--rule);padding:7px 8px;text-align:left}
+.exam-history th{background:var(--ground);font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+@media(max-width:700px){.exam-page{padding:12px}.exam-question{padding:13px}.exam-head h2{font-size:18px}}
+
 </style>
 </head>
 <body>
@@ -243,6 +302,9 @@ svg{display:block;width:100%;height:auto}
   </div>
 
   <div class="tabs" role="tablist" id="tabs"></div>
+
+
+  <section id="examPage" class="exam-page" hidden aria-label="Examination"></section>
 
   <div class="question" id="question"></div>
 
@@ -2033,6 +2095,369 @@ function heurFrames(kind){
 }
 function pathCost(p){let c=0;for(let i=0;i<p.length-1;i++){for(const [n,w] of HG[p[i]]) if(n===p[i+1]) c+=w;}return c;}
 
+
+/* =========================================================================
+   EXAMINATION — 25 calculation MCQs × 4 marks = 100 marks. Runs entirely in this browser.
+   Attempts and results are stored in localStorage on this device/browser.
+   ========================================================================= */
+const EXAM_QUESTION_BANK = [
+  // 01. STATE-SPACE SEARCH / WATER JUG
+  {topic:"State Space Search",q:"Jug X holds 4 L and jug Y holds 3 L. The current state is (4,1). If X is poured into Y until X is empty or Y is full, what is the next state?",o:["(1,3)","(2,3)","(3,2)","(4,3)"],a:1,sol:"Y has 3-1=2 L free. Transfer=min(4,2)=2 L. New state=(4-2,1+2)=(2,3)."},
+  {topic:"State Space Search",q:"From start state (0,0), the six water-jug operations produce: (4,0), (0,3), (0,0), (0,0), (0,0), (0,0). If (0,0) is already in seen, how many NEW states are added to the next frontier?",o:["1","2","3","6"],a:1,sol:"Only (4,0) and (0,3) are unseen. The four copies of (0,0) are duplicates, so 2 new states are added."},
+  {topic:"State Space Search",q:"Suppose seen={(0,0),(4,0),(0,3)} and the current frontier is [(4,0),(0,3)]. Expanding both states generates new distinct states (4,3), (1,3) and (3,0). How many states will the next frontier contain?",o:["2","3","4","6"],a:1,sol:"The next frontier stores each unseen state once. The three distinct unseen states are (4,3), (1,3), and (3,0), so its size is 3."},
+
+  // 02. BFS
+  {topic:"Breadth-First Search",q:"For the tree A->{B,C}, B->{D,E}, C->{F,G}, start BFS with queue [A]. After A and then B are expanded, what is the queue from front to back?",o:["[D,E,C]","[C,D,E]","[E,D,C]","[C,E,D]"],a:1,sol:"Pop A, enqueue B,C -> [B,C]. Pop B, enqueue D,E at the back -> [C,D,E]."},
+  {topic:"Breadth-First Search",q:"In the same tree, E->H and all other shown leaves have no children. BFS checks the goal when a node is removed from the queue. What is the node-removal order until H is reached?",o:["A,B,E,H","A,B,C,D,E,H","A,B,C,D,E,F,G,H","A,C,G,B,E,H"],a:2,sol:"BFS removes level by level: A; then B,C; then D,E,F,G; H was enqueued by E but waits behind F and G. Order: A,B,C,D,E,F,G,H."},
+  {topic:"Breadth-First Search",q:"BFS finds the path A->B->E->H. If every edge represents one corridor crossing, what is the path cost in number of edges?",o:["2","3","4","5"],a:1,sol:"Count edges, not nodes: A-B is 1, B-E is 2, E-H is 3. Total cost=3."},
+
+  // 03. DFS
+  {topic:"Depth-First Search",q:"Use iterative DFS on A->{B,C}, B->{D,E}. To explore the left child first, children are pushed in reverse order. Starting stack=[A], after expanding A and then B, what is the stack from bottom to top?",o:["[B,C,D,E]","[C,E,D]","[D,E,C]","[C,D,E]"],a:1,sol:"Expand A: push C then B -> [C,B]. Pop B, push E then D -> [C,E,D]. D is now on top and will be visited next."},
+  {topic:"Depth-First Search",q:"For A->{B,C}, B->{D,E}, E->{H}, using left-first DFS as described, what is the node-removal order until H is found?",o:["A,B,E,H","A,B,D,E,H","A,C,B,D,E,H","A,B,D,C,E,H"],a:1,sol:"DFS goes deep on the left: A -> B -> D. D is a dead end, so it backtracks to E, then reaches H. Removal order=A,B,D,E,H."},
+  {topic:"Depth-First Search",q:"A DFS path currently contains [A,B,E]. H is a child of E. If the algorithm stores whole paths and extends using path+[H], which path is pushed?",o:["[H]","[A,H]","[A,B,E,H]","[A,B,H,E]"],a:2,sol:"path+[H] concatenates the existing path [A,B,E] with [H], producing [A,B,E,H]."},
+
+  // 04. UCS
+  {topic:"Uniform Cost Search",q:"Road costs are A-B=1, A-C=4, B-C=2, B-D=5, C-D=1. What is the minimum total cost from A to D?",o:["3","4","5","6"],a:1,sol:"Candidate costs: A-B-D=1+5=6; A-C-D=4+1=5; A-B-C-D=1+2+1=4. Minimum=4."},
+  {topic:"Uniform Cost Search",q:"Using the same graph, after expanding A the frontier has B with g=1 and C with g=4. After expanding B, paths to C and D with costs 3 and 6 are added. Which path will UCS remove next?",o:["A-C with cost 4","A-B-C with cost 3","A-B-D with cost 6","A-B with cost 1"],a:1,sol:"UCS always removes the frontier path with the smallest cumulative g. Among 3,4,6, the minimum is A-B-C with g=3."},
+  {topic:"Uniform Cost Search",q:"A delivery route S->A->G costs 2+7, while S->B->C->G costs 1+2+3. What cost will UCS prefer if all edge costs are non-negative?",o:["5","6","7","9"],a:1,sol:"S-A-G costs 9. S-B-C-G costs 1+2+3=6. UCS prefers the minimum cumulative cost, 6."},
+
+  // 05. GREEDY BEST-FIRST
+  {topic:"Greedy Best-First Search",q:"From S there are two choices: A has edge cost 2 and h(A)=2; B has edge cost 1 and h(B)=3. Which node does Greedy Best-First expand first?",o:["A","B","Both because g+h is equal","It cannot decide without the goal cost"],a:0,sol:"Greedy compares h only. h(A)=2 < h(B)=3, so it expands A even though the edge to B is cheaper."},
+  {topic:"Greedy Best-First Search",q:"Greedy chooses S->A because h(A)=2<h(B)=3. From A it reaches goal G through an edge of cost 10. If S->A costs 2, what is the actual cost of Greedy's returned path S->A->G?",o:["4","5","10","12"],a:3,sol:"Actual path cost uses edge costs: 2+10=12. The heuristic values are not added to the final travelled cost."},
+  {topic:"Greedy Best-First Search",q:"In the same graph, route S->B->G costs 1+4=5, while Greedy returns S->A->G with cost 12. By how much is Greedy's route more expensive?",o:["5","6","7","8"],a:2,sol:"Extra cost=12-5=7."},
+
+  // 06. A* SEARCH
+  {topic:"A* Search",q:"From S, edge S->A costs 2 with h(A)=2, and S->B costs 1 with h(B)=3. What are f(A) and f(B)?",o:["f(A)=2, f(B)=3","f(A)=4, f(B)=4","f(A)=4, f(B)=3","f(A)=2, f(B)=4"],a:1,sol:"A*: f=g+h. For A: 2+2=4. For B: 1+3=4."},
+  {topic:"A* Search",q:"Suppose A* has expanded A and generated G with g(G)=12 and h(G)=0, while B remains in the frontier with g(B)=1 and h(B)=3. Which node should be expanded next?",o:["G because it is the goal","A again","B because f(B)=4 < f(G)=12","Either one because both have the same f"],a:2,sol:"f(G)=12+0=12. f(B)=1+3=4. A* expands the smallest f, so B is next."},
+  {topic:"A* Search",q:"After expanding B, A* reaches G with g=1+4=5 and h(G)=0. Another frontier path to G has g=12. What solution cost is selected?",o:["4","5","12","17"],a:1,sol:"Both goal entries have h=0, so f equals g. The cheaper goal has f=g=5, so A* returns cost 5."},
+
+  // 07. HILL CLIMBING
+  {topic:"Hill Climbing",q:"A one-dimensional objective has scores: x=0:2, x=1:5, x=2:8, x=3:7, x=4:9. Starting at x=0, Hill Climbing moves only to a higher-scoring adjacent position. Where does it stop?",o:["x=1 with score 5","x=2 with score 8","x=3 with score 7","x=4 with score 9"],a:1,sol:"0->1 because 5>2, then 1->2 because 8>5. At x=2, neighbor x=3 has 7<8, so the algorithm stops at the local maximum x=2."},
+  {topic:"Hill Climbing",q:"Using scores x=0:2, x=1:5, x=2:8, x=3:7, x=4:9, what is the difference between the global best score and the score found when starting at x=0?",o:["0","1","2","3"],a:0,sol:"Hill Climbing from x=0 stops at score 8. The global best score is 9 at x=4. Difference=9-8=1."},
+  {topic:"Hill Climbing",q:"At the current solution the score is 12. Three neighbors have scores 14, 11 and 13. Under steepest-ascent Hill Climbing, which score becomes the next current score?",o:["11","12","13","14"],a:3,sol:"Steepest-ascent chooses the best improving neighbor. max(14,11,13)=14, which is greater than 12."},
+
+  // 08. SIMULATED ANNEALING
+  {topic:"Simulated Annealing",q:"For a minimization problem, a proposed move is worse by Delta=4 at temperature T=4. Using p=exp(-Delta/T) and exp(-1)≈0.37, what is the acceptance probability?",o:["0.14","0.25","0.37","1.00"],a:2,sol:"p=exp(-4/4)=exp(-1)≈0.37."},
+  {topic:"Simulated Annealing",q:"For a worse move, Delta=2 and T=1. exp(-2)≈0.14. If the generated random number is u=0.20, what happens?",o:["Accept because 0.20>0.14","Reject because 0.20>0.14","Accept because every worse move is accepted","Reject because p must be exactly zero"],a:1,sol:"Accept only when u<p. Here 0.20>0.14, so the worse move is rejected."},
+  {topic:"Simulated Annealing",q:"The same worse move has Delta=2. At T=4, p=exp(-0.5)≈0.61; at T=1, p=exp(-2)≈0.14. By how much does the acceptance probability decrease when temperature falls from 4 to 1?",o:["0.14","0.33","0.47","0.75"],a:2,sol:"Decrease=0.61-0.14=0.47."},
+
+  // 09. HMM
+  {topic:"Hidden Markov Model",q:"At the end of today, P(Rain)=0.60 and P(Sun)=0.40. Transition probabilities are P(Rain next|Rain)=0.70 and P(Rain next|Sun)=0.40. Before seeing tomorrow's umbrella, what is P(Rain tomorrow)?",o:["0.42","0.46","0.58","0.70"],a:2,sol:"Prediction: 0.60*0.70 + 0.40*0.40 = 0.42+0.16 = 0.58."},
+  {topic:"Hidden Markov Model",q:"Before observing an umbrella, predicted probabilities are Rain=0.58 and Sun=0.42. P(Umbrella|Rain)=0.90 and P(Umbrella|Sun)=0.20. After observing an umbrella, approximately what is the normalized P(Rain)?",o:["0.58","0.72","0.86","0.94"],a:2,sol:"Unnormalized: Rain=0.58*0.90=0.522; Sun=0.42*0.20=0.084. Total=0.606. Normalize: 0.522/0.606≈0.861, so about 0.86."},
+  {topic:"Hidden Markov Model",q:"After an observation, P(Rain)=0.86 and P(Sun)=0.14. With transitions Rain->Rain=0.70 and Sun->Rain=0.40, what is the predicted probability of Rain on the next day?",o:["0.56","0.60","0.66","0.74"],a:2,sol:"0.86*0.70 + 0.14*0.40 = 0.602+0.056 = 0.658≈0.66."},
+
+  // 10. KALMAN FILTER
+  {topic:"Kalman Filter",q:"A 1-D Kalman filter has previous uncertainty P=4 and process-noise variance Q=1. What is the predicted uncertainty P- before the new measurement?",o:["3","4","5","8"],a:2,sol:"For this simple model, P-=P+Q=4+1=5."},
+  {topic:"Kalman Filter",q:"Using predicted uncertainty P-=5 and measurement-noise variance R=5, compute the Kalman gain K=P-/(P-+R).",o:["0.25","0.50","0.75","1.00"],a:1,sol:"K=5/(5+5)=5/10=0.50."},
+  {topic:"Kalman Filter",q:"The predicted temperature is 20 C, the sensor measures 24 C, and K=0.50. Using x+=x- + K(z-x-), what is the corrected temperature estimate?",o:["20 C","21 C","22 C","24 C"],a:2,sol:"Innovation=24-20=4. Correction=0.50*4=2. Updated estimate=20+2=22 C."},
+
+  // 11. MCMC / METROPOLIS-HASTINGS
+  {topic:"MCMC",q:"Target weights are A=1, B=2, C=3. With a symmetric proposal, the chain is at A and proposes C. Compute alpha=min(1,w(C)/w(A)).",o:["1/3","1/2","2/3","1"],a:3,sol:"alpha=min(1,3/1)=1. The proposal is always accepted."},
+  {topic:"MCMC",q:"Target weights are A=1, B=2, C=3. The chain is at C and proposes A. What is the Metropolis-Hastings acceptance probability?",o:["1/3","1/2","2/3","1"],a:0,sol:"alpha=min(1,1/3)=1/3≈0.333."},
+  {topic:"MCMC",q:"The chain is at C, proposes A, so alpha=1/3≈0.333. The generated random number is u=0.40. Which state is recorded for this iteration?",o:["A, because A was proposed","C, because 0.40>0.333 so the proposal is rejected","No state is recorded","B, because it has the middle weight"],a:1,sol:"Accept only if u<alpha. Since 0.40>0.333, reject A and stay at C. A rejection still records the current state C."}
+];
+const EXAM_MARKS_PER_QUESTION = 4;
+const EXAM_GUIDED_MARK = 1;
+const EXAM_TOTAL_MARKS = 100;
+const EXAM_SELECTED_INDICES = [0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+const EXAM_GUIDANCE = ["Do not pour all 4 L automatically. First calculate the free space in Y as capacity minus its current amount. The amount transferred is the smaller of water available in X and free space in Y. Then subtract the transfer from X and add it to Y.", "Write the six generated states. Cross out every state already present in seen, then remove repeated copies among what remains. The next frontier contains only distinct states that have never been seen before.", "BFS uses FIFO. Remove from the FRONT and append children at the BACK. Trace exactly two removals: first A, then the node that becomes the new front. Keep the queue order after every append.", "Draw the tree in levels. BFS must remove all nodes already waiting at a shallower level before a deeper node. H is generated when E is expanded, but check which nodes are already ahead of H in the queue.", "DFS uses LIFO. To visit the left child first, push the right child before the left child. Trace the stack after A is expanded, then pop the top and push that node's children in reverse order. Treat the rightmost stack item as the top.", "Follow one branch as deeply as possible. From A choose the left child; from B choose its left child. When that branch ends, backtrack to the most recent node that still has an unexplored child.", "List the meaningful A-to-D routes and add the edge costs on each route. UCS compares cumulative path cost g, not number of edges. Compare the direct alternatives with the route that passes through both B and C.", "Ignore insertion order. UCS behaves like a priority queue sorted by cumulative g. Write the costs of every path currently waiting in the frontier and choose the smallest one.", "Greedy Best-First does not use g+h. It ranks frontier nodes only by heuristic h. Compare the two h values and ignore the edge costs for this particular expansion decision.", "The heuristic helped choose which node to explore, but it is not part of the actual travelled cost. Add only the real edge costs along S->A->G.", "Use f(n)=g(n)+h(n). Because A and B are reached directly from S, each g value is the corresponding edge cost from S. Calculate f separately for A and B before comparing them.", "Do not select a goal merely because it has been generated. Compute f for every waiting entry. At a goal h=0, so its f equals its path cost. Compare that value with g(B)+h(B).", "Begin at x=0 and compare only adjacent positions. Move only when an adjacent score is higher. Repeat from the new position and stop when no adjacent move improves the score, even if a better point exists farther away.", "First trace Hill Climbing from x=0 until it gets stuck and record that local-optimum score. Separately inspect all values to find the global maximum. Subtract the local result from the global result.", "For a worse move, substitute Delta and T into p=exp(-Delta/T). Simplify the exponent first, then use the exponential approximation supplied in the question.", "The acceptance probability is already given. A worse move is accepted only when the random draw u is smaller than p. Compare the two values carefully and do not reverse the inequality.", "This is the HMM prediction step. Tomorrow can be Rain in two mutually exclusive ways: Rain today then Rain tomorrow, or Sun today then Rain tomorrow. Multiply along each route and add the two route probabilities.", "Perform the HMM measurement update in three stages: multiply each predicted state probability by its umbrella likelihood, add the two scores to obtain the evidence, then divide the Rain score by the evidence.", "Use the HMM prediction step again, not the emission probabilities. Multiply the current Rain belief by Rain->Rain, multiply the current Sun belief by Sun->Rain, then add the two contributions and round appropriately.", "In this simplified Kalman model, prediction adds process uncertainty because the system may change between readings. Use Pminus=P+Q. Do not use measurement noise R until the correction step.", "Use K=Pminus/(Pminus+R). Put predicted uncertainty in the numerator and predicted plus measurement uncertainty in the denominator. Simplify the fraction before converting to decimal.", "First calculate the innovation z-xminus. Multiply that difference by K to get the correction amount, then add the correction to the predicted estimate.", "With a symmetric MCMC proposal, proposal terms cancel. Divide the proposed state's target weight by the current state's weight, then apply min(1, ratio). A ratio above 1 is capped at 1.", "Use proposed weight divided by current weight. This move goes from a higher-weight state to a lower-weight state, so the ratio should be below 1. Then apply min(1, ratio).", "Use the rule accept if u<alpha. If a proposal is rejected, the iteration is still recorded: the Markov chain stays in its current state and records that same state again."];
+const EXAM_QUESTIONS = EXAM_SELECTED_INDICES.map((sourceIndex,i)=>({...EXAM_QUESTION_BANK[sourceIndex], sourceIndex, guide:EXAM_GUIDANCE[i]}));
+
+
+let examMode=false;
+let currentExam=null;
+let examSubmitted=false;
+let examIntegrityMessage="";
+
+function examKey(id){ return "ai_search_exam_v4_attempts_"+id.trim().toLowerCase(); }
+function safeJSON(s,fallback){ try{return JSON.parse(s)||fallback;}catch(e){return fallback;} }
+const EXAM_MEMORY_STORE={};
+function examHistory(id){
+  const k=examKey(id);
+  try{return safeJSON(localStorage.getItem(k),EXAM_MEMORY_STORE[k]||[]);}catch(e){return EXAM_MEMORY_STORE[k]||[];}
+}
+function saveExamHistory(id,h){
+  const k=examKey(id); EXAM_MEMORY_STORE[k]=h;
+  try{localStorage.setItem(k,JSON.stringify(h));}catch(e){}
+}
+function shuffle(a){
+  const b=a.slice();
+  for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}
+  return b;
+}
+function makeExamQuestion(q,sourceIndex){
+  const opts=q.o.map((t,i)=>({t,correct:i===q.a}));
+  const mixed=shuffle(opts);
+  return {topic:q.topic,q:q.q,guide:q.guide||"",sol:q.sol||"",sourceIndex:q.sourceIndex??sourceIndex,options:mixed.map(x=>x.t),correct:mixed.findIndex(x=>x.correct)};
+}
+function cleanStudentId(v){ return v.trim().replace(/\s+/g," "); }
+function attemptMultiplier(attemptNo){
+  return Math.max(0, 1 - 0.20 * (Math.max(1,attemptNo)-1));
+}
+function attemptPercent(attemptNo){ return Math.round(attemptMultiplier(attemptNo)*100); }
+function attemptQuestionMax(attemptNo){ return EXAM_MARKS_PER_QUESTION * attemptMultiplier(attemptNo); }
+function roundMark(x){ return Math.round((x + Number.EPSILON) * 100) / 100; }
+function questionMark(i){
+  if(!currentExam)return 0;
+  const q=currentExam.questions[i], a=currentExam.answers[i];
+  if(a===null||a===undefined||a!==q.correct)return 0;
+  if(currentExam.solutionUsed[i])return 0;
+  const retryMax=attemptQuestionMax(currentExam.attemptNo);
+  if(currentExam.guidanceUsed[i])return roundMark(retryMax * 0.25);
+  return roundMark(retryMax);
+}
+function questionMax(i){
+  if(!currentExam)return EXAM_MARKS_PER_QUESTION;
+  if(currentExam.solutionUsed[i])return 0;
+  const retryMax=attemptQuestionMax(currentExam.attemptNo);
+  if(currentExam.guidanceUsed[i])return roundMark(retryMax * 0.25);
+  return roundMark(retryMax);
+}
+function examStats(){
+  if(!currentExam) return {attempted:0,correct:0,wrong:0,unanswered:EXAM_QUESTIONS.length,score:0,guidanceUsed:0,solutionsUsed:0};
+  let attempted=0,correct=0,score=0;
+  currentExam.questions.forEach((q,i)=>{
+    const a=currentExam.answers[i];
+    if(a!==null&&a!==undefined){attempted++;if(a===q.correct)correct++;}
+    score+=questionMark(i);
+  });
+  score=roundMark(score);
+  return {attempted,correct,wrong:attempted-correct,unanswered:currentExam.questions.length-attempted,score,
+    guidanceUsed:currentExam.guidanceUsed.filter(Boolean).length,solutionsUsed:currentExam.solutionUsed.filter(Boolean).length,
+    attemptPercent:attemptPercent(currentExam.attemptNo),attemptCeiling:roundMark(EXAM_TOTAL_MARKS*attemptMultiplier(currentExam.attemptNo))};
+}
+function setLabChromeForExam(on){
+  $("examPage").hidden=!on;
+  $("question").style.display=on?"none":"";
+  document.querySelector(".modebar").style.display=on?"none":"";
+  document.querySelector(".stage").style.display=on?"none":"";
+  document.querySelector(".controls").style.display=on?"none":"";
+}
+function renderExamPage(){
+  setLabChromeForExam(true);
+  $("legend").innerHTML='<span><i class="dot" style="background:var(--frontier)"></i>25 calculation MCQs</span><span><i class="dot" style="background:var(--visited)"></i>4 marks each · 100 total</span><span><i class="dot" style="background:var(--goal)"></i>Guidance keeps 25% · Solution 0</span>';
+  const box=$("examPage");
+  if(!currentExam){
+    box.innerHTML=`<div class="exam-head"><div><h2>Examination</h2><p>25 randomized, medium-difficulty mathematical and algorithm-tracing MCQs covering all 11 labs. Each question carries <b>4 marks</b>, giving a total of <b>100 marks</b>. Use rough paper for calculations.</p></div></div>
+      <div class="exam-gate"><h3>Student identification</h3><p>Your attempt number, help usage and result history are recorded in this browser.</p>
+      <label for="studentId">Student ID / Register Number</label><input id="studentId" autocomplete="off" maxlength="40" placeholder="e.g. CB.SC.U4CSE24001" spellcheck="false">
+      <div><button id="startExamBtn">Start examination</button></div><div class="exam-error" id="examError"></div>
+      <div id="priorAttempts"></div>
+      <div class="exam-policy"><b>Marking and help policy</b><br>
+      <b>Attempt 1:</b> 100% of earned marks (maximum 100/100).<br>
+      <b>Attempt 2:</b> 80% (maximum 80/100). <b>Attempt 3:</b> 60%. <b>Attempt 4:</b> 40%. <b>Attempt 5:</b> 20%. Attempt 6 onward: 0%.<br>
+      The result is always reported <b>out of 100</b>. For example, on Attempt 2 a 4-mark question is worth 3.2 marks because 4 × 0.80 = 3.2.<br>
+      Open <b>Guidance</b>: a further 75% is deducted from that attempt-adjusted question value, leaving 25%.<br>
+      Open <b>Full Solution</b>: the question earns <b>0 marks</b>. Guidance gives the method without directly stating the option. Full Solution reveals the answer and calculation. Help usage is irreversible for that attempt.</div>
+      <p class="exam-note"><b>Instructions:</b> calculate each answer by hand before choosing an option. Copy, cut, paste, text selection and the context menu are disabled inside the examination area. This is a browser-side classroom deterrent, not secure remote proctoring.</p></div>`;
+    const inp=$("studentId");
+    const updatePrior=()=>{
+      const id=cleanStudentId(inp.value); const h=id?examHistory(id):[];
+      $("priorAttempts").innerHTML=id?`<div class="exam-statbar"><span class="exam-stat">Recorded attempts on this browser: <b>${h.length}</b></span><span class="exam-stat">Next attempt: <b>${h.length+1}</b></span><span class="exam-stat">Next attempt ceiling: <b>${attemptPercent(h.length+1)} / 100</b></span></div>`:"";
+    };
+    inp.addEventListener("input",updatePrior);
+    $("startExamBtn").onclick=()=>startExam();
+    return;
+  }
+  const st=examStats();
+  if(examSubmitted){ renderExamResult(st); return; }
+  box.innerHTML=`<div class="exam-head"><div><h2>Examination · Attempt ${currentExam.attemptNo}</h2><p>Student ID: <b>${esc(currentExam.studentId)}</b>. Base value is 4 marks per question. Attempt ${currentExam.attemptNo} applies a <b>${attemptPercent(currentExam.attemptNo)}%</b> retry factor before any help deduction.</p></div></div>
+    <div class="exam-statbar"><span class="exam-stat">Questions: <b>${currentExam.questions.length}</b></span><span class="exam-stat">Reported total: <b>100</b></span><span class="exam-stat">This attempt ceiling: <b>${st.attemptCeiling}/100</b></span><span class="exam-stat">Attempted: <b id="liveAttempted">${st.attempted}</b></span><span class="exam-stat">Remaining: <b id="liveRemaining">${st.unanswered}</b></span><span class="exam-stat">Guidance used: <b id="liveGuidance">${st.guidanceUsed}</b></span><span class="exam-stat">Solutions opened: <b id="liveSolutions">${st.solutionsUsed}</b></span></div>
+    <div class="exam-integrity" id="examIntegrity">Copy, cut, paste and right-click are disabled in the examination area.${examIntegrityMessage?" "+esc(examIntegrityMessage):""}</div>
+    <div class="exam-help-rule"><b>Retry + help rule:</b> This attempt uses ${attemptPercent(currentExam.attemptNo)}% of base marks. A no-help correct answer can earn ${roundMark(attemptQuestionMax(currentExam.attemptNo))}/4. Guidance keeps 25% of that value; Full Solution gives 0. Use help only when needed.</div>
+    <div id="examQuestions"></div>
+    <div class="exam-actions"><button id="submitExamBtn">Submit and evaluate</button><button class="secondary" id="topExamBtn">Back to top</button></div>`;
+  const qbox=$("examQuestions");
+  currentExam.questions.forEach((q,i)=>{
+    const d=document.createElement("section"); d.className="exam-question"+(currentExam.answers[i]!==null?" answered":""); d.id="eq"+i;
+    const maxNow=questionMax(i);
+    d.innerHTML=`<div class="exam-topic">${esc(q.topic)} · Question ${i+1} · <span id="qmax${i}">Current maximum: ${maxNow}/4</span></div><h4>${esc(q.q)}</h4>`+
+      q.options.map((o,j)=>`<label class="exam-option"><input type="radio" name="q${i}" value="${j}" ${currentExam.answers[i]===j?"checked":""}><span>${String.fromCharCode(65+j)}. ${esc(o)}</span></label>`).join("")+
+      `<div class="exam-helpbar"><button type="button" class="exam-help-btn guidance-btn${currentExam.guidanceUsed[i]?" used":""}" id="guideBtn${i}" ${currentExam.solutionUsed[i]?"disabled":""}>${currentExam.solutionUsed[i]&&!currentExam.guidanceUsed[i]?"Guidance unavailable · solution opened":currentExam.guidanceUsed[i]?"Guidance opened · reduced marks":"Guidance · deduct 75%"}</button><button type="button" class="exam-help-btn solution-btn${currentExam.solutionUsed[i]?" used":""}" id="solutionBtn${i}">${currentExam.solutionUsed[i]?"Solution opened · 0/4":"Full Solution · 100% deduction"}</button></div>
+      <div class="exam-help-panel guidance-panel" id="guidePanel${i}" ${currentExam.guidanceUsed[i]?"":"hidden"}><b>Detailed guidance</b><p>${currentExam.guidanceUsed[i]?esc(q.guide):""}</p>${currentExam.guidanceUsed[i]?'<div class="penalty-note">Guidance opened: this question can now earn only 25% of its attempt-adjusted value.</div>':""}</div>
+      <div class="exam-help-panel solution-panel" id="solutionPanel${i}" ${currentExam.solutionUsed[i]?"":"hidden"}>${currentExam.solutionUsed[i]?solutionPanelHTML(q):""}</div>`;
+    d.querySelectorAll("input").forEach(r=>r.onchange=()=>{
+      currentExam.answers[i]=Number(r.value); d.classList.add("answered"); updateExamLiveStats(); persistInProgressExam();
+    });
+    d.querySelector(`#guideBtn${i}`).onclick=()=>openGuidance(i);
+    d.querySelector(`#solutionBtn${i}`).onclick=()=>openSolution(i);
+    qbox.appendChild(d);
+  });
+  $("submitExamBtn").onclick=submitExam;
+  $("topExamBtn").onclick=()=>window.scrollTo({top:0,behavior:"smooth"});
+}
+function solutionPanelHTML(q){
+  return `<b>Full worked solution</b><p><b>Correct answer:</b> ${String.fromCharCode(65+q.correct)}. ${esc(q.options[q.correct])}</p><p>${esc(q.sol)}</p><div class="penalty-note danger-note">Full solution opened: this question is now worth 0 marks.</div>`;
+}
+function updateExamLiveStats(){
+  const x=examStats();
+  if($("liveAttempted"))$("liveAttempted").textContent=x.attempted;
+  if($("liveRemaining"))$("liveRemaining").textContent=x.unanswered;
+  if($("liveGuidance"))$("liveGuidance").textContent=x.guidanceUsed;
+  if($("liveSolutions"))$("liveSolutions").textContent=x.solutionsUsed;
+}
+function updateQuestionMax(i){
+  const el=$("qmax"+i); if(el)el.textContent=`Current maximum: ${questionMax(i)}/4`;
+}
+function openGuidance(i){
+  if(!currentExam||examSubmitted||currentExam.solutionUsed[i])return;
+  if(!currentExam.guidanceUsed[i]){
+    const ok=confirm("Open detailed guidance?\n\nThis permanently deducts 75% of this question's attempt-adjusted marks. Only 25% of the current question value can then be earned.");
+    if(!ok)return;
+    currentExam.guidanceUsed[i]=true;
+    persistInProgressExam();
+  }
+  const q=currentExam.questions[i], panel=$("guidePanel"+i), btn=$("guideBtn"+i);
+  panel.hidden=false; panel.innerHTML=`<b>Detailed guidance</b><p>${esc(q.guide)}</p><div class="penalty-note">Guidance opened: this question can now earn only 25% of its attempt-adjusted value.</div>`;
+  btn.textContent="Guidance opened · reduced marks"; btn.classList.add("used");
+  updateQuestionMax(i); updateExamLiveStats();
+}
+function openSolution(i){
+  if(!currentExam||examSubmitted)return;
+  if(!currentExam.solutionUsed[i]){
+    const ok=confirm("Open the full solution?\n\nThis permanently deducts 100% of this question's marks. This question will be worth 0 marks even if you answer it correctly.");
+    if(!ok)return;
+    currentExam.solutionUsed[i]=true;
+    persistInProgressExam();
+  }
+  const q=currentExam.questions[i], panel=$("solutionPanel"+i), btn=$("solutionBtn"+i);
+  panel.hidden=false; panel.innerHTML=solutionPanelHTML(q);
+  btn.textContent="Solution opened · 0/4"; btn.classList.add("used");
+  const gbtn=$("guideBtn"+i); if(gbtn){gbtn.disabled=true;if(!currentExam.guidanceUsed[i])gbtn.textContent="Guidance unavailable · solution opened";}
+  updateQuestionMax(i); updateExamLiveStats();
+}
+function startExam(){
+  const id=cleanStudentId($("studentId").value);
+  if(id.length<3){$("examError").textContent="Enter a valid student ID before starting the exam.";return;}
+  const h=examHistory(id); const attemptNo=h.length+1;
+  const questions=shuffle(EXAM_QUESTIONS.map((q,i)=>makeExamQuestion(q,i)));
+  currentExam={studentId:id,attemptNo,attemptPercent:attemptPercent(attemptNo),attemptCeiling:roundMark(EXAM_TOTAL_MARKS*attemptMultiplier(attemptNo)),startedAt:new Date().toISOString(),questions,answers:Array(questions.length).fill(null),guidanceUsed:Array(questions.length).fill(false),solutionUsed:Array(questions.length).fill(false),historyIndex:h.length};
+  h.push({attemptNo,attemptPercent:currentExam.attemptPercent,attemptCeiling:currentExam.attemptCeiling,startedAt:currentExam.startedAt,status:"in progress",attempted:0,score:null,total:questions.length,maxMarks:EXAM_TOTAL_MARKS,guidanceUsed:0,solutionsUsed:0}); saveExamHistory(id,h);
+  examSubmitted=false; examIntegrityMessage=""; render(); window.scrollTo({top:0});
+}
+function persistInProgressExam(){
+  if(!currentExam||examSubmitted)return; const h=examHistory(currentExam.studentId); const s=examStats();
+  if(h[currentExam.historyIndex]){Object.assign(h[currentExam.historyIndex],{attempted:s.attempted,guidanceUsed:s.guidanceUsed,solutionsUsed:s.solutionsUsed,lastUpdated:new Date().toISOString()});saveExamHistory(currentExam.studentId,h);}
+}
+function submitExam(){
+  if(!currentExam||examSubmitted)return; const s=examStats();
+  const ok=confirm(`Submit examination now?\n\nAttempted: ${s.attempted}/${currentExam.questions.length}\nUnattempted: ${s.unanswered}\nGuidance used: ${s.guidanceUsed}\nSolutions opened: ${s.solutionsUsed}`);
+  if(!ok)return;
+  examSubmitted=true; currentExam.submittedAt=new Date().toISOString(); currentExam.result=s;
+  const h=examHistory(currentExam.studentId); const pct=Math.round(s.score/EXAM_TOTAL_MARKS*10000)/100;
+  if(h[currentExam.historyIndex]) Object.assign(h[currentExam.historyIndex],{status:"submitted",submittedAt:currentExam.submittedAt,attempted:s.attempted,correct:s.correct,wrong:s.wrong,unanswered:s.unanswered,score:s.score,total:currentExam.questions.length,maxMarks:EXAM_TOTAL_MARKS,guidanceUsed:s.guidanceUsed,solutionsUsed:s.solutionsUsed,attemptPercent:s.attemptPercent,attemptCeiling:s.attemptCeiling,percent:pct});
+  saveExamHistory(currentExam.studentId,h); render(); window.scrollTo({top:0,behavior:"smooth"});
+}
+function gradeLabel(p){return p>=90?"Excellent":p>=75?"Very good":p>=60?"Good":p>=50?"Satisfactory":"Needs revision";}
+function renderExamResult(st){
+  const box=$("examPage"), pct=Math.round(st.score/EXAM_TOTAL_MARKS*10000)/100;
+  const hist=examHistory(currentExam.studentId);
+  const totalAttemptsForId=hist.length;
+  box.innerHTML=`<div class="exam-head"><div><h2>Examination result</h2><p>Student ID: <b>${esc(currentExam.studentId)}</b> · Attempt ${currentExam.attemptNo} · Total attempts for this ID: <b>${totalAttemptsForId}</b></p></div></div>
+    <div class="exam-result"><h3>${gradeLabel(pct)}</h3><div class="exam-score">${st.score} / ${EXAM_TOTAL_MARKS} &nbsp;(${pct}%)</div><p><b>Retry factor:</b> ${st.attemptPercent}% · <b>Maximum possible before help on this attempt:</b> ${st.attemptCeiling}/100</p>
+    <div class="exam-statbar"><span class="exam-stat">Attempted <b>${st.attempted}/25</b></span><span class="exam-stat">Correct <b>${st.correct}</b></span><span class="exam-stat">Wrong <b>${st.wrong}</b></span><span class="exam-stat">Unattempted <b>${st.unanswered}</b></span><span class="exam-stat">Guidance used <b>${st.guidanceUsed}</b></span><span class="exam-stat">Solutions opened <b>${st.solutionsUsed}</b></span></div></div>
+    <div class="exam-actions"><a id="pdfExamLink" href="#" download>Download detailed result PDF</a><button class="secondary" id="printExamBtn">Print / Save PDF</button><button class="secondary" id="newExamBtn">Return to exam entry</button></div>
+    <h3>Question review</h3><div id="examQuestions"></div>
+    <h3 style="margin-top:22px">Attempt history on this browser</h3>${historyTable(hist)}`;
+  const qbox=$("examQuestions");
+  currentExam.questions.forEach((q,i)=>{
+    const sel=currentExam.answers[i], good=sel===q.correct, mark=questionMark(i);
+    const assist=currentExam.solutionUsed[i]?(currentExam.guidanceUsed[i]?"Guidance + full solution opened (final mark 0)":"Full solution opened (100% deduction)"):currentExam.guidanceUsed[i]?"Guidance opened (75% help deduction after retry scaling)":"No help used";
+    const d=document.createElement("section"); d.className="exam-question "+(sel===null?"wrong":good?"correct":"wrong");
+    d.innerHTML=`<div class="exam-topic">${esc(q.topic)} · Question ${i+1} · Awarded ${mark}/4</div><h4>${esc(q.q)}</h4>`+
+      q.options.map((o,j)=>`<div class="exam-option"><span>${String.fromCharCode(65+j)}. ${esc(o)}${j===q.correct?" <b>✓ Correct</b>":""}${j===sel&&j!==q.correct?" <b>← Your answer</b>":j===sel?" <b>← Your answer</b>":""}</span></div>`).join("")+
+      `<div class="exam-review">Your answer: <b class="${good?"ok":"bad"}">${sel===null?"Not attempted":String.fromCharCode(65+sel)+". "+esc(q.options[sel])}</b><br>Correct answer: <b class="ok">${String.fromCharCode(65+q.correct)}. ${esc(q.options[q.correct])}</b><br><b>Assistance:</b> ${esc(assist)}<br><b>Marks awarded:</b> ${mark}/4<br><b>Guidance:</b> ${esc(q.guide)}<br><b>Worked solution:</b> ${esc(q.sol)}</div>`;
+    qbox.appendChild(d);
+  });
+  prepareExamPDFLink();
+  $("printExamBtn").onclick=()=>window.print();
+  $("newExamBtn").onclick=()=>{currentExam=null;examSubmitted=false;render();window.scrollTo({top:0,behavior:"smooth"});};
+}
+function historyTable(hist){
+  if(!hist.length)return "<p>No attempts recorded.</p>";
+  const rows=hist.slice().reverse().map(x=>`<tr><td>${x.attemptNo}</td><td>${new Date(x.startedAt).toLocaleString()}</td><td>${esc(x.status)}</td><td>${x.attempted??0}/${x.total||25}</td><td>${x.attemptPercent??attemptPercent(x.attemptNo)}%</td><td>${x.guidanceUsed??0} / ${x.solutionsUsed??0}</td><td>${x.score===null||x.score===undefined?"—":x.score+"/"+(x.maxMarks||100)}</td></tr>`).join("");
+  return `<table class="exam-history"><thead><tr><th>Attempt</th><th>Started</th><th>Status</th><th>Answered</th><th>Retry factor</th><th>Guidance / Solution</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function asciiPDFText(s){
+  return String(s).replace(/[–—]/g,"-").replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/→/g,"->").replace(/✓/g,"Correct").replace(/°/g," deg ").replace(/Δ/g,"Delta").replace(/π/g,"pi").replace(/[^\x20-\x7E]/g," ");
+}
+function wrapPDFLine(s,max=88){
+  s=asciiPDFText(s); if(s.length<=max)return [s]; const out=[]; let rest=s;
+  while(rest.length>max){let k=rest.lastIndexOf(" ",max);if(k<25)k=max;out.push(rest.slice(0,k));rest=rest.slice(k).trim();} if(rest)out.push(rest); return out;
+}
+function pdfEscape(s){return s.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");}
+function makeSimplePDF(lines){
+  const enc=new TextEncoder(), perPage=54, pages=[];
+  for(let i=0;i<lines.length;i+=perPage)pages.push(lines.slice(i,i+perPage));
+  const fontId=3+pages.length*2, objs={};
+  objs[1]="<< /Type /Catalog /Pages 2 0 R >>";
+  const kids=[];
+  pages.forEach((pg,i)=>{const pageId=3+i*2,contentId=pageId+1;kids.push(`${pageId} 0 R`);
+    let stream="BT\n/F1 9 Tf\n48 800 Td\n12 TL\n";
+    pg.forEach(line=>{stream+=`(${pdfEscape(line)}) Tj\nT*\n`;}); stream+="ET";
+    objs[pageId]=`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`;
+    objs[contentId]=`<< /Length ${enc.encode(stream).length} >>\nstream\n${stream}\nendstream`;
+  });
+  objs[2]=`<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${pages.length} >>`;
+  objs[fontId]="<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  let pdf="%PDF-1.4\n", offsets=[0]; const maxId=fontId;
+  for(let id=1;id<=maxId;id++){offsets[id]=enc.encode(pdf).length;pdf+=`${id} 0 obj\n${objs[id]}\nendobj\n`;}
+  const xref=enc.encode(pdf).length; pdf+=`xref\n0 ${maxId+1}\n0000000000 65535 f \n`;
+  for(let id=1;id<=maxId;id++)pdf+=String(offsets[id]).padStart(10,"0")+" 00000 n \n";
+  pdf+=`trailer\n<< /Size ${maxId+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([enc.encode(pdf)],{type:"application/pdf"});
+}
+let examPDFObjectURL=null;
+function buildExamPDFBlob(){
+  if(!currentExam||!examSubmitted)return null;
+  const st=currentExam.result||examStats();
+  const pct=Math.round(st.score/EXAM_TOTAL_MARKS*10000)/100;
+  const hist=examHistory(currentExam.studentId);
+  let lines=["AI SEARCH LAB - EXAMINATION RESULT","",`Student ID: ${currentExam.studentId}`,`Current attempt number: ${currentExam.attemptNo}`,`Total attempts recorded for this ID: ${hist.length}`,`Retry factor for this attempt: ${st.attemptPercent}%`,`Maximum possible before help on this attempt: ${st.attemptCeiling} / 100`,`Started: ${new Date(currentExam.startedAt).toLocaleString()}`,`Submitted: ${new Date(currentExam.submittedAt).toLocaleString()}`,`Marks awarded: ${st.score} / ${EXAM_TOTAL_MARKS} (${pct}%)`,`Attempted: ${st.attempted}/25   Correct: ${st.correct}   Wrong: ${st.wrong}   Unattempted: ${st.unanswered}`,`Guidance used: ${st.guidanceUsed}   Full solutions opened: ${st.solutionsUsed}`,"","ATTEMPT HISTORY FOR THIS STUDENT ID","-----------------------------------"];
+  hist.forEach(x=>{
+    const sc=x.score===null||x.score===undefined?"Not submitted":`${x.score}/${x.maxMarks||100}`;
+    lines.push(`Attempt ${x.attemptNo}: factor ${x.attemptPercent??attemptPercent(x.attemptNo)}%, status ${x.status}, answered ${x.attempted??0}/${x.total||25}, score ${sc}`);
+  });
+  lines.push("","QUESTION REVIEW, GUIDANCE AND WORKED SOLUTIONS","------------------------------------------------");
+  currentExam.questions.forEach((q,i)=>{
+    const sel=currentExam.answers[i], mark=questionMark(i);
+    const assist=currentExam.solutionUsed[i]?(currentExam.guidanceUsed[i]?"Guidance + full solution opened - final mark 0":"Full solution opened - 100% help deduction"):currentExam.guidanceUsed[i]?"Guidance opened - 75% help deduction after retry scaling":"No help used";
+    lines.push("",`${i+1}. [${q.topic}] ${q.q}`);
+    lines.push(`Base marks: 4   Attempt-adjusted no-help maximum: ${roundMark(attemptQuestionMax(currentExam.attemptNo))}`);
+    lines.push(`Your answer: ${sel===null?"Not attempted":String.fromCharCode(65+sel)+". "+q.options[sel]}`);
+    lines.push(`Correct answer: ${String.fromCharCode(65+q.correct)}. ${q.options[q.correct]}`);
+    lines.push(`Assistance: ${assist}`);
+    lines.push(`Marks awarded: ${mark} / 4 (reported within the 100-mark exam total)`);
+    lines.push(`Guidance: ${q.guide}`);
+    lines.push(`Worked solution: ${q.sol}`);
+    lines.push(`Result: ${sel===q.correct?"Correct":sel===null?"Not attempted":"Wrong"}`);
+  });
+  lines=lines.flatMap(x=>wrapPDFLine(x));
+  return makeSimplePDF(lines);
+}
+function prepareExamPDFLink(){
+  const a=$("pdfExamLink");
+  if(!a)return;
+  const blob=buildExamPDFBlob();
+  if(!blob){a.style.display="none";return;}
+  if(examPDFObjectURL)URL.revokeObjectURL(examPDFObjectURL);
+  examPDFObjectURL=URL.createObjectURL(blob);
+  a.href=examPDFObjectURL;
+  a.download=`AI_Search_Exam_${currentExam.studentId.replace(/[^A-Za-z0-9_-]+/g,"_")}_Attempt_${currentExam.attemptNo}.pdf`;
+}
+function downloadExamPDF(){
+  const blob=buildExamPDFBlob(); if(!blob)return;
+  if(window.navigator && window.navigator.msSaveOrOpenBlob){window.navigator.msSaveOrOpenBlob(blob,`AI_Search_Exam_${currentExam.studentId}_Attempt_${currentExam.attemptNo}.pdf`);return;}
+  const url=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=url;a.download=`AI_Search_Exam_${currentExam.studentId.replace(/[^A-Za-z0-9_-]+/g,"_")}_Attempt_${currentExam.attemptNo}.pdf`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+function blockExamAction(e){
+  if(!examMode)return; if(!$("examPage").contains(e.target))return;
+  e.preventDefault(); examIntegrityMessage="A blocked copy/paste or context-menu action was detected."; const m=$("examIntegrity"); if(m)m.textContent="Copy, cut, paste and right-click are disabled in the examination area. "+examIntegrityMessage;
+}
+["copy","cut","paste","contextmenu","dragstart","selectstart"].forEach(ev=>document.getElementById("examPage").addEventListener(ev,blockExamAction));
+
+
 /* =========================================================================
    RENDERING
    ========================================================================= */
@@ -2042,14 +2467,19 @@ const $ = id => document.getElementById(id);
 
 function buildTabs(){
   const t=$("tabs"); t.innerHTML="";
-  LABS.forEach((L,i)=>{
+  LABS.slice().sort((a,b)=>Number(a.num)-Number(b.num)).forEach((L,i)=>{
     const b=document.createElement("button");
     b.className="tab"; b.setAttribute("role","tab");
-    b.setAttribute("aria-selected", L===lab ? "true":"false");
+    b.setAttribute("aria-selected", (!examMode && L===lab) ? "true":"false");
     b.innerHTML=`<span class="num">${L.num}</span>${L.tab}`;
-    b.onclick=()=>{ lab=L; idx=0; mode="build"; stop(); render(); };
+    b.onclick=()=>{ examMode=false; setLabChromeForExam(false); lab=L; idx=0; mode="build"; stop(); render(); };
     t.appendChild(b);
   });
+  const e=document.createElement("button");
+  e.className="tab exam-tab"; e.setAttribute("role","tab"); e.setAttribute("aria-selected",examMode?"true":"false");
+  e.innerHTML='<span class="num">12</span>Examination';
+  e.onclick=()=>{ stop(); examMode=true; render(); };
+  t.appendChild(e);
 }
 
 function maxIdx(){ return mode==="build" ? lab.steps.length-1 : frames.length-1; }
@@ -2300,6 +2730,8 @@ function renderLegend(){
 
 function render(){
   buildTabs();
+  if(examMode){ renderExamPage(); return; }
+  setLabChromeForExam(false);
   renderLegend();
   $("question").innerHTML = lab.question;
   $("mBuild").setAttribute("aria-pressed", mode==="build");
@@ -2337,6 +2769,10 @@ $("play").onclick=()=>{
   render();
 };
 document.addEventListener("keydown",e=>{
+  if(examMode){
+    if((e.ctrlKey||e.metaKey) && ["c","v","x","a"].includes(e.key.toLowerCase()) && $("examPage").contains(document.activeElement)){e.preventDefault();}
+    return;
+  }
   if(e.key==="ArrowRight"){ if(idx<maxIdx()){idx++;render();} }
   if(e.key==="ArrowLeft"){ if(idx>0){idx--;render();} }
 });
