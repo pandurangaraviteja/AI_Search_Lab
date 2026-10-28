@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Search Lab — Build It, Then Run It</title>
+<title>AI Search Lab — Exam 2 Verified</title>
 <style>
 :root{
   --ground:#e7ecf4;
@@ -65,6 +65,10 @@ body{
 .tab:focus-visible{outline:2px solid var(--current);outline-offset:2px}
 .tab.exam-tab{font-weight:800;color:#991b1b;border-color:#fecaca;background:#fff7f7}
 .tab.exam-tab[aria-selected="true"]{background:#991b1b;color:#fff;border-color:#991b1b;box-shadow:none}
+.tab.exam2-tab{font-weight:800;color:#1d4ed8;border-color:#bfdbfe;background:#f5f9ff}
+.tab.exam2-tab[aria-selected="true"]{background:#1d4ed8;color:#fff;border-color:#1d4ed8;box-shadow:none}
+.exam-tabshift{background:#fff1f2;border:1px solid #fda4af;border-left:4px solid #be123c;padding:10px 12px;margin:0 0 16px;font-size:13px}
+.exam-tabshift strong{color:#9f1239}
 
 /* ---------- question ---------- */
 .question{
@@ -305,6 +309,7 @@ svg{display:block;width:100%;height:auto}
 
 
   <section id="examPage" class="exam-page" hidden aria-label="Examination"></section>
+  <section id="exam2Page" class="exam-page" hidden aria-label="Examination 2"></section>
 
   <div class="question" id="question"></div>
 
@@ -2228,6 +2233,7 @@ function examStats(){
 }
 function setLabChromeForExam(on){
   $("examPage").hidden=!on;
+  $("exam2Page").hidden=true;
   $("question").style.display=on?"none":"";
   document.querySelector(".modebar").style.display=on?"none":"";
   document.querySelector(".stage").style.display=on?"none":"";
@@ -2458,6 +2464,239 @@ function blockExamAction(e){
 ["copy","cut","paste","contextmenu","dragstart","selectstart"].forEach(ev=>document.getElementById("examPage").addEventListener(ev,blockExamAction));
 
 
+
+/* =========================================================================
+   EXAMINATION 2 — 25 NEW CALCULATION / TRACE MCQs
+   Guidance penalty: 50% of the question value.
+   Full solution penalty: 100% of the question value.
+   Leaving the Examination 2 tab/window during an active attempt applies one
+   non-compounding 50% penalty to the final score; every shift is recorded.
+   ========================================================================= */
+const EXAM2_TOTAL_MARKS = 100;
+const EXAM2_MARKS_PER_QUESTION = 4;
+const EXAM2_QUESTION_BANK = [
+  {topic:"State Space",q:"Two jugs have capacities 5 L and 3 L. The current state is (5,1). If X is poured into Y until Y is full or X is empty, what is the next state?",o:["(2,3)","(3,3)","(4,2)","(5,3)"],a:1,guide:"Write the free space in Y first: 3 minus the current amount in Y. The transferred quantity is min(water in X, free space in Y). Subtract only that transferred amount from X and add it to Y. Do not assume the whole 5 L moves.",sol:"Y has 3-1=2 L free. Transfer=min(5,2)=2 L. New X=5-2=3 and new Y=1+2=3. Therefore the state is (3,3)."},
+  {topic:"State Space",q:"A 4 L jug X and a 2 L jug Y start at (0,0). From the six standard water-jug operations, how many DISTINCT NEW states are produced in one expansion if (0,0) is already in seen?",o:["1","2","4","6"],a:1,guide:"List the result of Fill X, Fill Y, Empty X, Empty Y, Pour X->Y and Pour Y->X. Since both jugs are empty, several operations return (0,0). Cross out (0,0) because it is already in seen, then count only distinct remaining states.",sol:"The six results are (4,0), (0,2), (0,0), (0,0), (0,0), (0,0). Removing the seen state and duplicates leaves (4,0) and (0,2): 2 distinct new states."},
+
+  {topic:"BFS",q:"For A->[B,C], B->[D,E], C->[F], start BFS with queue [A]. After A is removed and expanded, then B is removed and expanded, what is the queue from front to back?",o:["[D,E,C]","[C,D,E]","[C,E,D]","[D,C,E]"],a:1,guide:"BFS is FIFO. After expanding A, append B then C. Next remove only the front item B, leaving C. Append B's children D then E behind everything already waiting. Keep the exact order.",sol:"After A: [B,C]. Remove B -> [C]. Append D and E -> [C,D,E]."},
+  {topic:"BFS",q:"For A->[B,C], B->[D,E], C->[F], E->[G], BFS checks the goal when a node is removed from the queue. What is the visit/removal order up to goal G?",o:["A,B,D,E,G","A,B,C,D,E,F,G","A,C,F,B,E,G","A,B,C,E,G"],a:1,guide:"Write the queue after every expansion. BFS must remove all nodes already waiting at a shallower level before moving to the next level. Even when G is generated from E, any node already ahead of G remains ahead of it in the FIFO queue.",sol:"Removal order is A, B, C, D, E, F, G. G is generated when E is expanded, but F was already waiting in the queue."},
+
+  {topic:"DFS",q:"For A->[B,C], B->[D,E], use a stack and push children in reverse order so the left child is visited first. After expanding A and then B, what is the stack from bottom to top?",o:["[C,E,D]","[D,E,C]","[C,D,E]","[E,D,C]"],a:0,guide:"Treat the rightmost item as the top. At A, push C first and then B so B is popped next. When B is popped, C remains. Then push E first and D second so D becomes the next top item.",sol:"After A the stack is [C,B]. Pop B -> [C]. Push E then D -> [C,E,D]."},
+  {topic:"DFS",q:"For A->[B,C], B->[D,E], E->[G], using left-first DFS, what is the visit order until G is found?",o:["A,B,D,E,G","A,B,E,G","A,C,B,D,E,G","A,B,D,C,E,G"],a:0,guide:"DFS goes as deep as possible before backtracking. Start A->B, then take B's left child D. D is a leaf, so backtrack to B and take E. From E continue to G.",sol:"The order is A, B, D, E, G."},
+
+  {topic:"Uniform Cost Search",q:"Road costs are S-A=2, S-B=5, A-C=4, B-C=2, C-G=3, A-G=10. What is the least path cost from S to G?",o:["7","9","10","12"],a:1,guide:"Add the real edge costs for each plausible route. In particular compare S-A-G, S-A-C-G, and S-B-C-G. UCS chooses the smallest cumulative path cost g, not the route with the fewest edges.",sol:"S-A-G=2+10=12. S-A-C-G=2+4+3=9. S-B-C-G=5+2+3=10. Minimum cost is 9."},
+  {topic:"Uniform Cost Search",q:"A UCS frontier currently contains paths P1 with g=8, P2 with g=5, P3 with g=11, and P4 with g=6. Which path is removed next?",o:["P1","P2","P3","P4"],a:1,guide:"UCS behaves like a priority queue ordered by cumulative cost g. Ignore when a path was inserted and compare the four g values directly. The smallest g leaves first.",sol:"The minimum cumulative cost is g=5, so P2 is removed next."},
+
+  {topic:"Greedy Best-First",q:"From S, node A has h(A)=4 and node B has h(B)=2. Their path costs so far are g(A)=1 and g(B)=6. Which node does Greedy Best-First expand next?",o:["A because g is smaller","B because h is smaller","A because g+h is smaller","Both tie"],a:1,guide:"Greedy Best-First ranks frontier nodes using only h(n). Do not add g(n); that would be A*. Compare the heuristic values 4 and 2 only.",sol:"Greedy uses only h. Since h(B)=2<h(A)=4, it expands B."},
+  {topic:"Greedy Best-First",q:"Greedy selects route S->B->G because h(B) is smaller. If S-B costs 6 and B-G costs 7, what is the ACTUAL route cost?",o:["7","11","13","15"],a:2,guide:"The heuristic is only used to decide what looks promising. It is not added to the travelled route cost here. Add the actual edge costs on S->B and B->G.",sol:"Actual route cost=6+7=13."},
+
+  {topic:"A* Search",q:"A* has two frontier nodes. A has g=3,h=5; B has g=5,h=1. Which node has the smaller f=g+h and is selected next?",o:["A, f=8","B, f=6","A, f=5","B, f=5"],a:1,guide:"Compute f separately for each node using f(n)=g(n)+h(n). Then select the smaller f. Do not compare g or h alone.",sol:"f(A)=3+5=8. f(B)=5+1=6. B is selected."},
+  {topic:"A* Search",q:"At some step A* has goal G in the frontier with g(G)=9,h(G)=0 and node X with g(X)=5,h(X)=3. Which is expanded first?",o:["G because it is already a goal","X because f(X)=8<9","G because h(G)=0","They tie"],a:1,guide:"A* still compares f values in the frontier. For a goal, h=0 so f(G)=g(G). Calculate f(X)=g(X)+h(X) and compare it with 9.",sol:"f(G)=9+0=9. f(X)=5+3=8. X is expanded first."},
+
+  {topic:"Hill Climbing",q:"A one-dimensional objective has scores f(0)=2, f(1)=5, f(2)=7, f(3)=6, f(4)=10. Starting at x=0 and moving only to an adjacent state with a higher score, where does Hill Climbing stop?",o:["x=1","x=2","x=3","x=4"],a:1,guide:"Trace one local move at a time. From x=0 compare the adjacent option x=1. Continue while the adjacent score rises. When both available adjacent moves are not better than the current score, stop, even if a larger score exists farther away.",sol:"0->1 because 5>2, then 1->2 because 7>5. At x=2, x=3 has 6<7, so it stops at x=2."},
+  {topic:"Hill Climbing",q:"Using f(0)=2, f(1)=5, f(2)=7, f(3)=6, f(4)=10, Hill Climbing from x=0 stops with score 7. What is the gap between this local optimum and the global maximum score?",o:["2","3","4","5"],a:1,guide:"First identify the largest score anywhere in the table. Then subtract the score reached by Hill Climbing from that global maximum. This measures how much the local optimum misses.",sol:"Global maximum=10 at x=4. Local optimum score=7. Gap=10-7=3."},
+
+  {topic:"Simulated Annealing",q:"For a minimization problem, a proposed move is worse by Delta=3 at temperature T=3. Using p=exp(-Delta/T) and exp(-1)≈0.37, what is the acceptance probability?",o:["0.14","0.37","0.50","1.00"],a:1,guide:"For a worse move, use p=exp(-Delta/T). Substitute the given Delta and T, simplify the exponent first, then use the supplied approximation for exp(-1).",sol:"p=exp(-3/3)=exp(-1)≈0.37."},
+  {topic:"Simulated Annealing",q:"A worse move has acceptance probability p=0.45. The random draw is u=0.32. What does Simulated Annealing do?",o:["Reject because p<0.5","Accept because u<p","Reject because u<p","Accept only if the move is better"],a:1,guide:"For a worse move, compare the random number with the acceptance probability. The move is accepted when u<p. Do not require p to exceed 0.5.",sol:"0.32<0.45, so the worse move is accepted."},
+
+  {topic:"Hidden Markov Model",q:"Current belief is P(Rain)=0.50, P(Sun)=0.50. Transitions are Rain->Rain=0.80 and Sun->Rain=0.30. Before the next observation, what is P(Rain next)?",o:["0.40","0.50","0.55","0.80"],a:2,guide:"Rain tomorrow can occur through two mutually exclusive paths: Rain today then Rain tomorrow, or Sun today then Rain tomorrow. Multiply the probability along each path and add the two contributions.",sol:"P(Rain next)=0.50*0.80+0.50*0.30=0.40+0.15=0.55."},
+  {topic:"Hidden Markov Model",q:"Predicted belief is Rain=0.55, Sun=0.45. P(Umbrella|Rain)=0.80 and P(Umbrella|Sun)=0.20. After observing an umbrella, approximately what is P(Rain)?",o:["0.55","0.69","0.83","0.95"],a:2,guide:"First compute the two unnormalized observation scores: predicted state probability times its umbrella likelihood. Add them to form the evidence. Finally divide the Rain score by the evidence and round to two decimals.",sol:"Rain score=0.55*0.80=0.44. Sun score=0.45*0.20=0.09. Evidence=0.53. P(Rain|Umbrella)=0.44/0.53≈0.83."},
+  {topic:"Hidden Markov Model",q:"After an observation the belief is Rain=0.83, Sun=0.17. If Rain->Rain=0.80 and Sun->Rain=0.30, approximately what is the next predicted P(Rain)?",o:["0.58","0.66","0.72","0.83"],a:2,guide:"This is another transition/prediction step, not an emission update. Multiply the current Rain belief by Rain->Rain, multiply the current Sun belief by Sun->Rain, and add.",sol:"0.83*0.80+0.17*0.30=0.664+0.051=0.715≈0.72."},
+
+  {topic:"Kalman Filter",q:"A 1-D Kalman filter has previous uncertainty P=6 and process noise Q=2. What is the predicted uncertainty P-?",o:["4","6","8","12"],a:2,guide:"In the simple random-walk model used in this lab, uncertainty grows during prediction. Use P-=P+Q. Measurement noise R is not used until the correction stage.",sol:"P-=6+2=8."},
+  {topic:"Kalman Filter",q:"Predicted uncertainty is P-=8 and measurement noise is R=4. What is the Kalman gain K=P-/(P-+R)?",o:["0.33","0.50","0.67","0.80"],a:2,guide:"Place P- in the numerator and P-+R in the denominator. Simplify 8/(8+4), then convert the fraction to a decimal rounded to two places.",sol:"K=8/(8+4)=8/12=2/3≈0.67."},
+  {topic:"Kalman Filter",q:"The predicted value is 30, the sensor reads 33, and K=2/3. Using x+=x-+K(z-x-), what is the corrected estimate?",o:["31","32","32.5","33"],a:1,guide:"First calculate the innovation z-x-. Multiply that difference by K. Add the resulting correction to the predicted value. Keep the simple fraction 2/3 until the final step.",sol:"Innovation=33-30=3. Correction=(2/3)*3=2. Updated estimate=30+2=32."},
+
+  {topic:"MCMC",q:"Target weights are A=2, B=5, C=3. With a symmetric proposal, the chain is at A and proposes B. What is alpha=min(1,w(B)/w(A))?",o:["0.40","0.60","1.00","2.50"],a:2,guide:"For a symmetric proposal, compare proposed target weight with current target weight. Compute w(proposed)/w(current) and cap any value above 1 at exactly 1.",sol:"w(B)/w(A)=5/2=2.5, so alpha=min(1,2.5)=1."},
+  {topic:"MCMC",q:"Target weights are A=2, B=5, C=3. The chain is at B and proposes C. What is the Metropolis-Hastings acceptance probability?",o:["0.40","0.60","0.67","1.00"],a:1,guide:"Use proposed weight divided by current weight. Because the proposal moves from weight 5 down to weight 3, the ratio must be below 1. The min(1,ratio) operation therefore leaves the ratio unchanged.",sol:"alpha=min(1,3/5)=0.60."},
+  {topic:"MCMC",q:"The chain is at B and proposes C with alpha=0.60. The random draw is u=0.72. What state is recorded for this MCMC iteration?",o:["C, because it was proposed","B, because the proposal is rejected","No state is recorded","A, because it has the smallest weight"],a:1,guide:"MCMC accepts when u<alpha. Compare 0.72 with 0.60. If the proposal is rejected, the chain does not disappear and does not skip the sample; it records the current state again.",sol:"0.72>0.60, so C is rejected. The chain stays at B and records B for this iteration."}
+];
+
+let exam2Mode=false;
+let currentExam2=null;
+let exam2Submitted=false;
+let exam2IntegrityMessage="";
+let exam2PDFObjectURL=null;
+
+function exam2Key(id){ return "ai_search_exam2_v1_attempts_"+id.trim().toLowerCase(); }
+const EXAM2_MEMORY_STORE={};
+function exam2History(id){
+  const k=exam2Key(id);
+  try{return safeJSON(localStorage.getItem(k),EXAM2_MEMORY_STORE[k]||[]);}catch(e){return EXAM2_MEMORY_STORE[k]||[];}
+}
+function saveExam2History(id,h){
+  const k=exam2Key(id); EXAM2_MEMORY_STORE[k]=h;
+  try{localStorage.setItem(k,JSON.stringify(h));}catch(e){}
+}
+function makeExam2Question(q,sourceIndex){
+  const opts=q.o.map((t,i)=>({t,correct:i===q.a}));
+  const mixed=shuffle(opts);
+  return {topic:q.topic,q:q.q,guide:q.guide||"",sol:q.sol||"",sourceIndex,options:mixed.map(x=>x.t),correct:mixed.findIndex(x=>x.correct)};
+}
+function exam2AttemptQuestionMax(attemptNo){ return EXAM2_MARKS_PER_QUESTION*attemptMultiplier(attemptNo); }
+function exam2QuestionMark(i){
+  if(!currentExam2)return 0;
+  const q=currentExam2.questions[i], a=currentExam2.answers[i];
+  if(a===null||a===undefined||a!==q.correct)return 0;
+  if(currentExam2.solutionUsed[i])return 0;
+  const retryMax=exam2AttemptQuestionMax(currentExam2.attemptNo);
+  if(currentExam2.guidanceUsed[i])return roundMark(retryMax*0.50);
+  return roundMark(retryMax);
+}
+function exam2QuestionMax(i){
+  if(!currentExam2)return EXAM2_MARKS_PER_QUESTION;
+  if(currentExam2.solutionUsed[i])return 0;
+  const retryMax=exam2AttemptQuestionMax(currentExam2.attemptNo);
+  if(currentExam2.guidanceUsed[i])return roundMark(retryMax*0.50);
+  return roundMark(retryMax);
+}
+function exam2TabFactor(){ return currentExam2 && currentExam2.tabShiftCount>0 ? 0.50 : 1; }
+function exam2Stats(){
+  if(!currentExam2)return {attempted:0,correct:0,wrong:0,unanswered:25,preTabScore:0,score:0,guidanceUsed:0,solutionsUsed:0,tabShiftCount:0,tabPenaltyPercent:0};
+  let attempted=0,correct=0,preTabScore=0;
+  currentExam2.questions.forEach((q,i)=>{
+    const a=currentExam2.answers[i];
+    if(a!==null&&a!==undefined){attempted++;if(a===q.correct)correct++;}
+    preTabScore+=exam2QuestionMark(i);
+  });
+  preTabScore=roundMark(preTabScore);
+  const tabFactor=exam2TabFactor();
+  const score=roundMark(preTabScore*tabFactor);
+  return {attempted,correct,wrong:attempted-correct,unanswered:currentExam2.questions.length-attempted,preTabScore,score,
+    guidanceUsed:currentExam2.guidanceUsed.filter(Boolean).length,solutionsUsed:currentExam2.solutionUsed.filter(Boolean).length,
+    tabShiftCount:currentExam2.tabShiftCount||0,tabPenaltyPercent:tabFactor===0.5?50:0,
+    attemptPercent:attemptPercent(currentExam2.attemptNo),attemptCeiling:roundMark(EXAM2_TOTAL_MARKS*attemptMultiplier(currentExam2.attemptNo)),
+    finalCeiling:roundMark(EXAM2_TOTAL_MARKS*attemptMultiplier(currentExam2.attemptNo)*tabFactor)};
+}
+function setLabChromeForExam2(on){
+  $("exam2Page").hidden=!on;
+  $("examPage").hidden=true;
+  $("question").style.display=on?"none":"";
+  document.querySelector(".modebar").style.display=on?"none":"";
+  document.querySelector(".stage").style.display=on?"none":"";
+  document.querySelector(".controls").style.display=on?"none":"";
+}
+function exam2Persist(){
+  if(!currentExam2||exam2Submitted)return;
+  const h=exam2History(currentExam2.studentId), st=exam2Stats();
+  if(h[currentExam2.historyIndex]){
+    Object.assign(h[currentExam2.historyIndex],{attempted:st.attempted,guidanceUsed:st.guidanceUsed,solutionsUsed:st.solutionsUsed,tabShiftCount:st.tabShiftCount,tabPenaltyPercent:st.tabPenaltyPercent,lastUpdated:new Date().toISOString()});
+    saveExam2History(currentExam2.studentId,h);
+  }
+}
+function recordExam2TabShift(reason){
+  if(!currentExam2||exam2Submitted)return;
+  currentExam2.tabShiftCount=(currentExam2.tabShiftCount||0)+1;
+  currentExam2.tabShiftEvents=currentExam2.tabShiftEvents||[];
+  currentExam2.tabShiftEvents.push({time:new Date().toISOString(),reason:reason||"Left Examination 2"});
+  exam2IntegrityMessage=`Tab/window shift detected ${currentExam2.tabShiftCount} time(s). A one-time 50% overall score penalty is active.`;
+  exam2Persist();
+  if(exam2Mode){
+    const msg=$("exam2TabWarning"); if(msg)msg.innerHTML=`<strong>Tab-shift penalty active:</strong> ${currentExam2.tabShiftCount} shift(s) recorded. Final earned marks will be multiplied by 0.50. Further shifts are recorded but do not compound the penalty.`;
+    const c=$("liveTabShifts2");if(c)c.textContent=currentExam2.tabShiftCount;
+    const f=$("liveFinalCeiling2");if(f)f.textContent=exam2Stats().finalCeiling+"/100";
+  }
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden && exam2Mode && currentExam2 && !exam2Submitted)recordExam2TabShift("Browser tab/window hidden");
+});
+function renderExam2Page(){
+  setLabChromeForExam2(true);
+  $("legend").innerHTML='<span><i class="dot" style="background:var(--frontier)"></i>25 new calculation MCQs</span><span><i class="dot" style="background:var(--visited)"></i>4 marks each · 100 total</span><span><i class="dot" style="background:var(--goal)"></i>Guidance 50% · Tab shift 50%</span>';
+  const box=$("exam2Page");
+  if(!currentExam2){
+    box.innerHTML=`<div class="exam-head"><div><h2>Examination 2</h2><p>25 new medium-difficulty, by-hand mathematical and algorithm-tracing MCQs. Each question carries <b>4 marks</b>, for a reported total of <b>100 marks</b>.</p></div></div>
+      <div class="exam-gate"><h3>Student identification</h3><p>Examination 2 keeps a separate attempt history for each Student ID on this browser.</p>
+      <label for="studentId2">Student ID / Register Number</label><input id="studentId2" autocomplete="off" maxlength="40" placeholder="e.g. CB.SC.U4CSE24001" spellcheck="false">
+      <div><button id="startExam2Btn">Start Examination 2</button></div><div class="exam-error" id="exam2Error"></div><div id="priorAttempts2"></div>
+      <div class="exam-policy"><b>Marking policy</b><br>
+      Attempt scaling remains the same: Attempt 1 = 100%, Attempt 2 = 80%, Attempt 3 = 60%, Attempt 4 = 40%, Attempt 5 = 20%, Attempt 6 onward = 0%.<br>
+      <b>Detailed Guidance:</b> opening it permanently deducts <b>50%</b> of that question's attempt-adjusted value. On Attempt 1, a guided correct answer can earn 2/4.<br>
+      <b>Full Solution:</b> opening it makes that question worth <b>0 marks</b>.<br>
+      <b>Tab/window shift:</b> leaving Examination 2 during an active attempt activates a <b>one-time 50% overall penalty</b>. Every shift is counted and reported, but the 50% penalty is not compounded repeatedly.</div>
+      <p class="exam-note"><b>Integrity controls:</b> copy, cut, paste, text selection, dragging and right-click are disabled inside Examination 2. Use rough paper for calculations.</p></div>`;
+    const inp=$("studentId2");
+    const updatePrior=()=>{const id=cleanStudentId(inp.value);const h=id?exam2History(id):[];$("priorAttempts2").innerHTML=id?`<div class="exam-statbar"><span class="exam-stat">Recorded Exam 2 attempts: <b>${h.length}</b></span><span class="exam-stat">Next attempt: <b>${h.length+1}</b></span><span class="exam-stat">Retry ceiling: <b>${attemptPercent(h.length+1)}/100</b></span></div>`:"";};
+    inp.addEventListener("input",updatePrior); $("startExam2Btn").onclick=startExam2; return;
+  }
+  const st=exam2Stats();
+  if(exam2Submitted){renderExam2Result(st);return;}
+  box.innerHTML=`<div class="exam-head"><div><h2>Examination 2 · Attempt ${currentExam2.attemptNo}</h2><p>Student ID: <b>${esc(currentExam2.studentId)}</b>. Retry factor: <b>${attemptPercent(currentExam2.attemptNo)}%</b>. Guidance leaves 50% of a question's value; Full Solution leaves 0.</p></div></div>
+    <div class="exam-statbar"><span class="exam-stat">Questions <b>25</b></span><span class="exam-stat">Reported total <b>100</b></span><span class="exam-stat">Attempted <b id="liveAttempted2">${st.attempted}</b></span><span class="exam-stat">Remaining <b id="liveRemaining2">${st.unanswered}</b></span><span class="exam-stat">Guidance <b id="liveGuidance2">${st.guidanceUsed}</b></span><span class="exam-stat">Solutions <b id="liveSolutions2">${st.solutionsUsed}</b></span><span class="exam-stat">Tab shifts <b id="liveTabShifts2">${st.tabShiftCount}</b></span><span class="exam-stat">Current score ceiling <b id="liveFinalCeiling2">${st.finalCeiling}/100</b></span></div>
+    <div class="exam-integrity" id="exam2Integrity">Copy, cut, paste, selection and right-click are disabled.${exam2IntegrityMessage?" "+esc(exam2IntegrityMessage):""}</div>
+    <div class="exam-tabshift" id="exam2TabWarning">${st.tabShiftCount?`<strong>Tab-shift penalty active:</strong> ${st.tabShiftCount} shift(s) recorded. Final earned marks will be multiplied by 0.50. Further shifts are recorded but do not compound the penalty.`:`<strong>Tab-shift rule:</strong> no shift recorded. Leaving this exam tab/window during the active attempt will reduce the final earned score by 50%.`}</div>
+    <div class="exam-help-rule"><b>Help rule:</b> A correct no-help answer can earn ${roundMark(exam2AttemptQuestionMax(currentExam2.attemptNo))}/4 before any tab penalty. Detailed Guidance keeps 50% of that question value. Full Solution gives 0.</div>
+    <div id="exam2Questions"></div>
+    <div class="exam-actions"><button id="submitExam2Btn">Submit and evaluate</button><button class="secondary" id="topExam2Btn">Back to top</button></div>`;
+  const qbox=$("exam2Questions");
+  currentExam2.questions.forEach((q,i)=>{
+    const d=document.createElement("section");d.className="exam-question"+(currentExam2.answers[i]!==null?" answered":"");d.id="e2q"+i;
+    d.innerHTML=`<div class="exam-topic">${esc(q.topic)} · Question ${i+1} · <span id="e2qmax${i}">Current maximum: ${exam2QuestionMax(i)}/4</span></div><h4>${esc(q.q)}</h4>`+
+      q.options.map((o,j)=>`<label class="exam-option"><input type="radio" name="e2q${i}" value="${j}" ${currentExam2.answers[i]===j?"checked":""}><span>${String.fromCharCode(65+j)}. ${esc(o)}</span></label>`).join("")+
+      `<div class="exam-helpbar"><button type="button" class="exam-help-btn guidance-btn${currentExam2.guidanceUsed[i]?" used":""}" id="e2guideBtn${i}" ${currentExam2.solutionUsed[i]?"disabled":""}>${currentExam2.solutionUsed[i]&&!currentExam2.guidanceUsed[i]?"Guidance unavailable · solution opened":currentExam2.guidanceUsed[i]?"Guidance opened · 50% value remains":"Detailed Guidance · 50% penalty"}</button><button type="button" class="exam-help-btn solution-btn${currentExam2.solutionUsed[i]?" used":""}" id="e2solutionBtn${i}">${currentExam2.solutionUsed[i]?"Solution opened · 0/4":"Full Solution · 100% penalty"}</button></div>
+      <div class="exam-help-panel guidance-panel" id="e2guidePanel${i}" ${currentExam2.guidanceUsed[i]?"":"hidden"}>${currentExam2.guidanceUsed[i]?`<b>Detailed guidance</b><p>${esc(q.guide)}</p><div class="penalty-note">Guidance opened: 50% of this question's attempt-adjusted value remains.</div>`:""}</div>
+      <div class="exam-help-panel solution-panel" id="e2solutionPanel${i}" ${currentExam2.solutionUsed[i]?"":"hidden"}>${currentExam2.solutionUsed[i]?exam2SolutionHTML(q):""}</div>`;
+    d.querySelectorAll("input").forEach(r=>r.onchange=()=>{currentExam2.answers[i]=Number(r.value);d.classList.add("answered");updateExam2LiveStats();exam2Persist();});
+    d.querySelector(`#e2guideBtn${i}`).onclick=()=>openExam2Guidance(i);
+    d.querySelector(`#e2solutionBtn${i}`).onclick=()=>openExam2Solution(i);
+    qbox.appendChild(d);
+  });
+  $("submitExam2Btn").onclick=submitExam2; $("topExam2Btn").onclick=()=>window.scrollTo({top:0,behavior:"smooth"});
+}
+function exam2SolutionHTML(q){return `<b>Full worked solution</b><p><b>Correct answer:</b> ${String.fromCharCode(65+q.correct)}. ${esc(q.options[q.correct])}</p><p>${esc(q.sol)}</p><div class="penalty-note danger-note">Full solution opened: this question is now worth 0 marks.</div>`;}
+function updateExam2LiveStats(){const x=exam2Stats();if($("liveAttempted2"))$("liveAttempted2").textContent=x.attempted;if($("liveRemaining2"))$("liveRemaining2").textContent=x.unanswered;if($("liveGuidance2"))$("liveGuidance2").textContent=x.guidanceUsed;if($("liveSolutions2"))$("liveSolutions2").textContent=x.solutionsUsed;if($("liveTabShifts2"))$("liveTabShifts2").textContent=x.tabShiftCount;if($("liveFinalCeiling2"))$("liveFinalCeiling2").textContent=x.finalCeiling+"/100";}
+function updateExam2QuestionMax(i){const el=$("e2qmax"+i);if(el)el.textContent=`Current maximum: ${exam2QuestionMax(i)}/4`;}
+function openExam2Guidance(i){
+  if(!currentExam2||exam2Submitted||currentExam2.solutionUsed[i])return;
+  if(!currentExam2.guidanceUsed[i]){const ok=confirm("Open detailed guidance?\n\nThis permanently deducts 50% of this question's attempt-adjusted marks.");if(!ok)return;currentExam2.guidanceUsed[i]=true;exam2Persist();}
+  const q=currentExam2.questions[i],panel=$("e2guidePanel"+i),btn=$("e2guideBtn"+i);panel.hidden=false;panel.innerHTML=`<b>Detailed guidance</b><p>${esc(q.guide)}</p><div class="penalty-note">Guidance opened: 50% of this question's attempt-adjusted value remains.</div>`;btn.textContent="Guidance opened · 50% value remains";btn.classList.add("used");updateExam2QuestionMax(i);updateExam2LiveStats();
+}
+function openExam2Solution(i){
+  if(!currentExam2||exam2Submitted)return;
+  if(!currentExam2.solutionUsed[i]){const ok=confirm("Open the full solution?\n\nThis permanently makes this question worth 0 marks.");if(!ok)return;currentExam2.solutionUsed[i]=true;exam2Persist();}
+  const q=currentExam2.questions[i],panel=$("e2solutionPanel"+i),btn=$("e2solutionBtn"+i);panel.hidden=false;panel.innerHTML=exam2SolutionHTML(q);btn.textContent="Solution opened · 0/4";btn.classList.add("used");const g=$("e2guideBtn"+i);if(g){g.disabled=true;if(!currentExam2.guidanceUsed[i])g.textContent="Guidance unavailable · solution opened";}updateExam2QuestionMax(i);updateExam2LiveStats();
+}
+function startExam2(){
+  const id=cleanStudentId($("studentId2").value);if(id.length<3){$("exam2Error").textContent="Enter a valid student ID before starting Examination 2.";return;}
+  const h=exam2History(id),attemptNo=h.length+1,questions=shuffle(EXAM2_QUESTION_BANK.map((q,i)=>makeExam2Question(q,i)));
+  currentExam2={studentId:id,attemptNo,startedAt:new Date().toISOString(),questions,answers:Array(25).fill(null),guidanceUsed:Array(25).fill(false),solutionUsed:Array(25).fill(false),tabShiftCount:0,tabShiftEvents:[],historyIndex:h.length};
+  h.push({attemptNo,attemptPercent:attemptPercent(attemptNo),startedAt:currentExam2.startedAt,status:"in progress",attempted:0,score:null,total:25,maxMarks:100,guidanceUsed:0,solutionsUsed:0,tabShiftCount:0});saveExam2History(id,h);
+  exam2Submitted=false;exam2IntegrityMessage="";render();window.scrollTo({top:0});
+}
+function submitExam2(){
+  if(!currentExam2||exam2Submitted)return;const s=exam2Stats();const ok=confirm(`Submit Examination 2 now?\n\nAttempted: ${s.attempted}/25\nUnattempted: ${s.unanswered}\nGuidance used: ${s.guidanceUsed}\nSolutions opened: ${s.solutionsUsed}\nTab shifts: ${s.tabShiftCount}${s.tabShiftCount?" (50% overall penalty active)":""}`);if(!ok)return;
+  exam2Submitted=true;currentExam2.submittedAt=new Date().toISOString();currentExam2.result=s;const h=exam2History(currentExam2.studentId),pct=roundMark(s.score);
+  if(h[currentExam2.historyIndex])Object.assign(h[currentExam2.historyIndex],{status:"submitted",submittedAt:currentExam2.submittedAt,attempted:s.attempted,correct:s.correct,wrong:s.wrong,unanswered:s.unanswered,preTabScore:s.preTabScore,score:s.score,total:25,maxMarks:100,guidanceUsed:s.guidanceUsed,solutionsUsed:s.solutionsUsed,tabShiftCount:s.tabShiftCount,tabPenaltyPercent:s.tabPenaltyPercent,attemptPercent:s.attemptPercent,percent:pct});saveExam2History(currentExam2.studentId,h);render();window.scrollTo({top:0,behavior:"smooth"});
+}
+function exam2HistoryTable(hist){
+  if(!hist.length)return "<p>No Examination 2 attempts recorded.</p>";
+  const rows=hist.slice().reverse().map(x=>`<tr><td>${x.attemptNo}</td><td>${new Date(x.startedAt).toLocaleString()}</td><td>${esc(x.status)}</td><td>${x.attempted??0}/${x.total||25}</td><td>${x.attemptPercent??attemptPercent(x.attemptNo)}%</td><td>${x.guidanceUsed??0}/${x.solutionsUsed??0}</td><td>${x.tabShiftCount??0}</td><td>${x.score===null||x.score===undefined?"—":x.score+"/100"}</td></tr>`).join("");
+  return `<table class="exam-history"><thead><tr><th>Attempt</th><th>Started</th><th>Status</th><th>Answered</th><th>Retry</th><th>Guide/Solution</th><th>Tab shifts</th><th>Score</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderExam2Result(st){
+  const box=$("exam2Page"),hist=exam2History(currentExam2.studentId),pct=roundMark(st.score);
+  box.innerHTML=`<div class="exam-head"><div><h2>Examination 2 result</h2><p>Student ID: <b>${esc(currentExam2.studentId)}</b> · Attempt ${currentExam2.attemptNo} · Total Examination 2 attempts for this ID: <b>${hist.length}</b></p></div></div>
+    <div class="exam-result"><h3>${gradeLabel(pct)}</h3><div class="exam-score">${st.score} / 100 (${pct}%)</div><p><b>Score before tab penalty:</b> ${st.preTabScore}/100 · <b>Tab shifts:</b> ${st.tabShiftCount} · <b>Tab penalty:</b> ${st.tabPenaltyPercent}% · <b>Retry factor:</b> ${st.attemptPercent}%</p>
+    <div class="exam-statbar"><span class="exam-stat">Attempted <b>${st.attempted}/25</b></span><span class="exam-stat">Correct <b>${st.correct}</b></span><span class="exam-stat">Wrong <b>${st.wrong}</b></span><span class="exam-stat">Unattempted <b>${st.unanswered}</b></span><span class="exam-stat">Guidance <b>${st.guidanceUsed}</b></span><span class="exam-stat">Solutions <b>${st.solutionsUsed}</b></span><span class="exam-stat">Tab shifts <b>${st.tabShiftCount}</b></span></div></div>
+    <div class="exam-actions"><a id="pdfExam2Link" href="#" download>Download detailed result PDF</a><button class="secondary" id="printExam2Btn">Print / Save PDF</button><button class="secondary" id="newExam2Btn">Return to Exam 2 entry</button></div>
+    <h3>Question review</h3><div id="exam2Review"></div><h3 style="margin-top:22px">Examination 2 attempt history</h3>${exam2HistoryTable(hist)}`;
+  const r=$("exam2Review");
+  currentExam2.questions.forEach((q,i)=>{const sel=currentExam2.answers[i],good=sel===q.correct,mark=exam2QuestionMark(i),assist=currentExam2.solutionUsed[i]?"Full solution opened - question mark 0":currentExam2.guidanceUsed[i]?"Detailed guidance opened - 50% question penalty":"No help used";const d=document.createElement("section");d.className="exam-question "+(sel===null?"wrong":good?"correct":"wrong");d.innerHTML=`<div class="exam-topic">${esc(q.topic)} · Question ${i+1} · Before tab penalty ${mark}/4</div><h4>${esc(q.q)}</h4>`+q.options.map((o,j)=>`<div class="exam-option"><span>${String.fromCharCode(65+j)}. ${esc(o)}${j===q.correct?" <b>✓ Correct</b>":""}${j===sel?" <b>← Your answer</b>":""}</span></div>`).join("")+`<div class="exam-review">Your answer: <b class="${good?"ok":"bad"}">${sel===null?"Not attempted":String.fromCharCode(65+sel)+". "+esc(q.options[sel])}</b><br>Correct answer: <b class="ok">${String.fromCharCode(65+q.correct)}. ${esc(q.options[q.correct])}</b><br><b>Assistance:</b> ${esc(assist)}<br><b>Guidance:</b> ${esc(q.guide)}<br><b>Worked solution:</b> ${esc(q.sol)}</div>`;r.appendChild(d);});
+  prepareExam2PDFLink();$("printExam2Btn").onclick=()=>window.print();$("newExam2Btn").onclick=()=>{currentExam2=null;exam2Submitted=false;render();window.scrollTo({top:0,behavior:"smooth"});};
+}
+function buildExam2PDFBlob(){
+  if(!currentExam2||!exam2Submitted)return null;const st=currentExam2.result||exam2Stats(),hist=exam2History(currentExam2.studentId);
+  let lines=["AI SEARCH LAB - EXAMINATION 2 RESULT","",`Student ID: ${currentExam2.studentId}`,`Current Exam 2 attempt: ${currentExam2.attemptNo}`,`Total Exam 2 attempts for this ID: ${hist.length}`,`Retry factor: ${st.attemptPercent}%`,`Started: ${new Date(currentExam2.startedAt).toLocaleString()}`,`Submitted: ${new Date(currentExam2.submittedAt).toLocaleString()}`,`Tab/window shifts recorded: ${st.tabShiftCount}`,`Tab-shift penalty: ${st.tabPenaltyPercent}% (one-time, non-compounding)`,`Score before tab penalty: ${st.preTabScore} / 100`,`FINAL SCORE: ${st.score} / 100`,`Attempted: ${st.attempted}/25   Correct: ${st.correct}   Wrong: ${st.wrong}   Unattempted: ${st.unanswered}`,`Detailed guidance used: ${st.guidanceUsed}   Full solutions opened: ${st.solutionsUsed}`,"","TAB-SHIFT LOG","-------------"];
+  if((currentExam2.tabShiftEvents||[]).length)currentExam2.tabShiftEvents.forEach((e,i)=>lines.push(`${i+1}. ${new Date(e.time).toLocaleString()} - ${e.reason}`));else lines.push("No tab/window shift recorded.");
+  lines.push("","ATTEMPT HISTORY","---------------");hist.forEach(x=>lines.push(`Attempt ${x.attemptNo}: retry ${x.attemptPercent??attemptPercent(x.attemptNo)}%, tab shifts ${x.tabShiftCount??0}, status ${x.status}, score ${x.score===null||x.score===undefined?"Not submitted":x.score+"/100"}`));
+  lines.push("","QUESTION REVIEW, GUIDANCE AND SOLUTIONS","---------------------------------------");
+  currentExam2.questions.forEach((q,i)=>{const sel=currentExam2.answers[i],mark=exam2QuestionMark(i),assist=currentExam2.solutionUsed[i]?"Full solution opened - 0 marks":currentExam2.guidanceUsed[i]?"Detailed guidance opened - 50% question penalty":"No help used";lines.push("",`${i+1}. [${q.topic}] ${q.q}`,`Your answer: ${sel===null?"Not attempted":String.fromCharCode(65+sel)+". "+q.options[sel]}`,`Correct answer: ${String.fromCharCode(65+q.correct)}. ${q.options[q.correct]}`,`Assistance: ${assist}`,`Question marks before overall tab penalty: ${mark} / 4`,`Detailed guidance: ${q.guide}`,`Worked solution: ${q.sol}`);});
+  return makeSimplePDF(lines.flatMap(x=>wrapPDFLine(x)));
+}
+function prepareExam2PDFLink(){const a=$("pdfExam2Link");if(!a)return;const blob=buildExam2PDFBlob();if(!blob){a.style.display="none";return;}if(exam2PDFObjectURL)URL.revokeObjectURL(exam2PDFObjectURL);exam2PDFObjectURL=URL.createObjectURL(blob);a.href=exam2PDFObjectURL;a.download=`AI_Search_Exam2_${currentExam2.studentId.replace(/[^A-Za-z0-9_-]+/g,"_")}_Attempt_${currentExam2.attemptNo}.pdf`;}
+function blockExam2Action(e){if(!exam2Mode)return;if(!$("exam2Page").contains(e.target))return;e.preventDefault();exam2IntegrityMessage="A blocked copy/paste, selection or context-menu action was detected.";const m=$("exam2Integrity");if(m)m.textContent="Copy, cut, paste, selection and right-click are disabled. "+exam2IntegrityMessage;}
+["copy","cut","paste","contextmenu","dragstart","selectstart"].forEach(ev=>document.getElementById("exam2Page").addEventListener(ev,blockExam2Action));
+
 /* =========================================================================
    RENDERING
    ========================================================================= */
@@ -2470,16 +2709,21 @@ function buildTabs(){
   LABS.slice().sort((a,b)=>Number(a.num)-Number(b.num)).forEach((L,i)=>{
     const b=document.createElement("button");
     b.className="tab"; b.setAttribute("role","tab");
-    b.setAttribute("aria-selected", (!examMode && L===lab) ? "true":"false");
+    b.setAttribute("aria-selected", (!examMode && !exam2Mode && L===lab) ? "true":"false");
     b.innerHTML=`<span class="num">${L.num}</span>${L.tab}`;
-    b.onclick=()=>{ examMode=false; setLabChromeForExam(false); lab=L; idx=0; mode="build"; stop(); render(); };
+    b.onclick=()=>{ if(exam2Mode&&currentExam2&&!exam2Submitted)recordExam2TabShift("Switched to a learning tab inside the app"); examMode=false; exam2Mode=false; setLabChromeForExam(false); lab=L; idx=0; mode="build"; stop(); render(); };
     t.appendChild(b);
   });
   const e=document.createElement("button");
   e.className="tab exam-tab"; e.setAttribute("role","tab"); e.setAttribute("aria-selected",examMode?"true":"false");
   e.innerHTML='<span class="num">12</span>Examination';
-  e.onclick=()=>{ stop(); examMode=true; render(); };
+  e.onclick=()=>{ if(exam2Mode&&currentExam2&&!exam2Submitted)recordExam2TabShift("Switched from Examination 2 to Examination 1"); stop(); exam2Mode=false; examMode=true; render(); };
   t.appendChild(e);
+  const e2=document.createElement("button");
+  e2.className="tab exam2-tab"; e2.setAttribute("role","tab"); e2.setAttribute("aria-selected",exam2Mode?"true":"false");
+  e2.innerHTML='<span class="num">13</span>Examination 2';
+  e2.onclick=()=>{ stop(); examMode=false; exam2Mode=true; render(); };
+  t.appendChild(e2);
 }
 
 function maxIdx(){ return mode==="build" ? lab.steps.length-1 : frames.length-1; }
@@ -2731,6 +2975,7 @@ function renderLegend(){
 function render(){
   buildTabs();
   if(examMode){ renderExamPage(); return; }
+  if(exam2Mode){ renderExam2Page(); return; }
   setLabChromeForExam(false);
   renderLegend();
   $("question").innerHTML = lab.question;
@@ -2773,12 +3018,21 @@ document.addEventListener("keydown",e=>{
     if((e.ctrlKey||e.metaKey) && ["c","v","x","a"].includes(e.key.toLowerCase()) && $("examPage").contains(document.activeElement)){e.preventDefault();}
     return;
   }
+  if(exam2Mode){
+    if((e.ctrlKey||e.metaKey) && ["c","v","x","a"].includes(e.key.toLowerCase())){e.preventDefault();}
+    return;
+  }
   if(e.key==="ArrowRight"){ if(idx<maxIdx()){idx++;render();} }
   if(e.key==="ArrowLeft"){ if(idx>0){idx--;render();} }
 });
 
 frames=[];
-render();
+try {
+  render();
+} catch (err) {
+  console.error("AI Search Lab startup error:", err);
+  document.body.innerHTML = `<div style="max-width:900px;margin:40px auto;padding:24px;font-family:system-ui;background:#fff;border:1px solid #c2cbdb"><h2>AI Search Lab could not start</h2><p>The HTML loaded, but the browser reported a startup error.</p><pre style="white-space:pre-wrap;background:#f4f7fc;padding:12px;border:1px solid #c2cbdb">${String(err && (err.stack || err.message) || err)}</pre><p>Please open this file in a current version of Chrome or Edge.</p></div>`;
+}
 </script>
 </body>
 </html>
